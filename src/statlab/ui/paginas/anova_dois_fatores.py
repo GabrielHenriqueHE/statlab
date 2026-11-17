@@ -40,6 +40,7 @@ except ErroDeDados as exc:
 
 componentes.prerequisitos(res)
 componentes.resultado(res)
+componentes.conclusao(res, resposta)
 st.markdown("**Análise de variância (SQ ajustadas)**")
 st.dataframe(
     pd.DataFrame(
@@ -69,4 +70,8 @@ col1.plotly_chart(
     graficos.efeitos_principais(res.medias_a, res.medias_b, res.media_geral, nome_a=fator_a, nome_b=fator_b)
 )
 col2.plotly_chart(graficos.interacao(res.medias_celulas, res.niveis_a, res.niveis_b, nome_a=fator_a, nome_b=fator_b))
-st.plotly_chart(graficos.residuos_quatro(res.residuos, res.ajustados))
+fig_res = graficos.residuos_quatro(res.residuos, res.ajustados)
+st.plotly_chart(fig_res)
+componentes.botao_relatorio(
+    "a2", componentes.item(res, f"ANOVA de dois fatores: {resposta} ~ {fator_a}, {fator_b}", resposta, [fig_res])
+)

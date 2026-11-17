@@ -28,11 +28,14 @@ if antes == depois:
     st.info("Escolha colunas diferentes para antes e depois.")
     st.stop()
 alt = componentes.escolher_alternativa("par_alt", "antes > depois (diminuiu)", "antes < depois (aumentou)")
+variavel = componentes.nome_variavel("par_nome", "o valor")
 try:
     res = analisar_antes_depois(df[antes].tolist(), df[depois].tolist(), alpha=alpha, alternativa=alt)
 except ErroDeDados as exc:
     st.error(str(exc))
 else:
-    componentes.mostrar(res)
+    componentes.mostrar(res, variavel)
     d = df[antes].to_numpy(dtype=float) - df[depois].to_numpy(dtype=float)
-    st.plotly_chart(graficos.boxplot({"d = antes − depois": d[~np.isnan(d)]}, titulo="Diferenças (antes − depois)"))
+    fig = graficos.boxplot({"d = antes − depois": d[~np.isnan(d)]}, titulo="Diferenças (antes − depois)")
+    st.plotly_chart(fig)
+    componentes.botao_relatorio("par", componentes.item(res, f"Antes × depois: {antes} × {depois}", variavel, [fig]))

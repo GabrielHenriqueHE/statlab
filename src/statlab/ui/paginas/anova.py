@@ -32,8 +32,11 @@ except ErroDeDados as exc:
     st.error(str(exc))
     st.stop()
 
+variavel = componentes.nome_variavel("an_nome", "a resposta")
 componentes.prerequisitos(res)
 componentes.resultado(res)
+componentes.conclusao(res, variavel)
+figuras = []
 
 if res.modelo.startswith("ANOVA"):
     st.markdown("**Análise de variância**")
@@ -72,7 +75,9 @@ if res.comparacoes:
         linhas.append(linha)
     st.dataframe(pd.DataFrame(linhas), hide_index=True)
     if res.metodo_comparacoes == "Tukey HSD":
-        st.plotly_chart(graficos.tukey_intervalos(res.comparacoes))
+        fig_tukey = graficos.tukey_intervalos(res.comparacoes)
+        st.plotly_chart(fig_tukey)
+        figuras.append(fig_tukey)
 elif res.significativo is False:
     st.caption("Sem diferença significativa: comparações 2 a 2 não são necessárias.")
 
@@ -80,5 +85,9 @@ componentes.avisos(res)
 componentes.calculo(res)
 
 col1, col2 = st.columns(2)
-col1.plotly_chart(graficos.intervalos(grupos))
-col2.plotly_chart(graficos.boxplot(grupos))
+fig_ic, fig_box = graficos.intervalos(grupos), graficos.boxplot(grupos)
+col1.plotly_chart(fig_ic)
+col2.plotly_chart(fig_box)
+componentes.botao_relatorio(
+    "an", componentes.item(res, f"{res.nome}: {', '.join(grupos)}", variavel, [*figuras, fig_ic, fig_box])
+)

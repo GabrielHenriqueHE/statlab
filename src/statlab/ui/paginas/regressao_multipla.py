@@ -37,6 +37,7 @@ except ErroDeDados as exc:
 
 componentes.prerequisitos(reg)
 componentes.resultado(reg)
+componentes.conclusao(reg)
 st.markdown(f"**Equação:** {reg.equacao}")
 
 st.markdown("**Coeficientes**")
@@ -90,4 +91,8 @@ p4.metric("IP 95% (nova obs.)", f"({num(prev.ip[0])}; {num(prev.ip[1])})")
 if prev.aviso:
     st.warning(prev.aviso)
 
-st.plotly_chart(graficos.residuos_quatro(reg.residuos, reg.ajustados))
+fig = graficos.residuos_quatro(reg.residuos, reg.ajustados)
+st.plotly_chart(fig)
+componentes.botao_relatorio(
+    "rm", componentes.item(reg, f"Regressão múltipla: {resposta} ~ {', '.join(preditores)}", figuras=[fig])
+)

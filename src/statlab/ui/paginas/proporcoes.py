@@ -59,6 +59,7 @@ else:
 if dados is not None:
     x1, t1, x2, t2, nome_1, nome_2 = dados
     alt = componentes.escolher_alternativa("pr_alt", f"p({nome_1}) > p({nome_2})", f"p({nome_1}) < p({nome_2})")
+    variavel = componentes.nome_variavel("pr_nome", "ocorrência")
     try:
         res = analisar_proporcoes(x1, t1, x2, t2, alpha=alpha, alternativa=alt, nome_1=nome_1, nome_2=nome_2)
     except ErroDeDados as exc:
@@ -67,4 +68,5 @@ if dados is not None:
         c1, c2 = st.columns(2)
         c1.metric(f"p̂ ({nome_1})", num(res.p1, 4))
         c2.metric(f"p̂ ({nome_2})", num(res.p2, 4))
-        componentes.mostrar(res)
+        componentes.mostrar(res, variavel)
+        componentes.botao_relatorio("pr", componentes.item(res, f"Duas proporções: {nome_1} × {nome_2}", variavel))

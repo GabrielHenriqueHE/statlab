@@ -18,6 +18,8 @@ from statlab.core.resultados import ALPHA_PADRAO, FALHA, OK, Resultado, Verifica
 
 @dataclass(kw_only=True)
 class Proporcoes(Resultado):
+    nome_1: str = "grupo 1"
+    nome_2: str = "grupo 2"
     p1: float = 0.0
     p2: float = 0.0
     p_combinada: float = 0.0
@@ -105,6 +107,8 @@ def analisar_proporcoes(
         rotulo_estatistica="z" if z_out is not None else "",
         p=p,
         n=n1 + n2,
+        nome_1=nome_1,
+        nome_2=nome_2,
         p1=p1,
         p2=p2,
         p_combinada=pc,

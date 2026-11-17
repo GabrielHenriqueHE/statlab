@@ -27,6 +27,9 @@ paginas = {
         st.Page("paginas/correlacao.py", title="Correlação e regressão"),
         st.Page("paginas/regressao_multipla.py", title="Regressão múltipla"),
     ],
+    "Relatório": [
+        st.Page("paginas/relatorio.py", title="Relatório"),
+    ],
 }
 estado.seletor_lateral()
 estado.seletor_alpha()

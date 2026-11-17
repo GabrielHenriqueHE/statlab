@@ -162,8 +162,8 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 | Item | Situação | Observação |
 |---|---|---|
 | Assistente "Qual teste usar?" (árvore de decisão) | ✅ F4 | por perguntas (com pendências para "não sei") ou rodando nos dados, com o caminho da decisão |
-| Conclusões em pt-BR no padrão da apostila | 🟡 | F5 |
-| Relatório HTML/Markdown exportável | 🟡 | F5 |
+| Conclusões em pt-BR no padrão da apostila | ✅ F5 | modelos da seção 10; conferidas contra os exemplos resolvidos |
+| Relatório HTML/Markdown exportável | ✅ F5 | botão "Adicionar ao relatório" em cada teste; HTML com gráficos, sem CDN |
 | Gerador de listas com gabarito (prática) | 🟡 | F6 |
 | Poder e tamanho de amostra | 🔵 | útil para ensino |
 
@@ -186,3 +186,4 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 4. **Andamento (16/11/2026):** regressão múltipla e ANOVA de 2 fatores concluídas (validadas contra a saída do
    Minitab no exemplo do cap. 5 do guia). Próximo: F4 (assistente) e F5 (conclusões e relatório).
 5. **Andamento (16/11/2026):** F4 concluída (assistente). Próximo: F5 (conclusões e relatório).
+6. **Andamento (16/11/2026):** F5 concluída (conclusões e relatório). Próximo: F6 (prática com o gerador de listas).

@@ -122,7 +122,9 @@ with aba_dados:
             for linha in assistente.caminho(objetivo_d, res):
                 st.markdown(f"- {linha}")
             componentes.resultado(res)
+            componentes.conclusao(res)
             componentes.avisos(res)
+            componentes.botao_relatorio("as", componentes.item(res, f"Assistente: {_rotulo(objetivo_d)}"))
             st.caption(
                 f"Para gráficos e o cálculo completo, abra a página **{assistente.OBJETIVOS[objetivo_d].pagina}**."
             )

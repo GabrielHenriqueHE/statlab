@@ -29,13 +29,18 @@ with aba_medias:
     if grupos is not None:
         (nome_a, va), (nome_b, vb) = grupos.items()
         alt = componentes.escolher_alternativa("g2_alt", f"{nome_a} > {nome_b}", f"{nome_a} < {nome_b}")
+        variavel = componentes.nome_variavel("g2_nome", "a variável")
         try:
             res = analisar_dois_grupos(va, vb, alpha=alpha, alternativa=alt, nome_a=nome_a, nome_b=nome_b)
         except ErroDeDados as exc:
             st.error(str(exc))
         else:
-            componentes.mostrar(res)
-            st.plotly_chart(graficos.boxplot(grupos, titulo=f"{nome_a} × {nome_b}"))
+            componentes.mostrar(res, variavel)
+            fig = graficos.boxplot(grupos, titulo=f"{nome_a} × {nome_b}")
+            st.plotly_chart(fig)
+            componentes.botao_relatorio(
+                "g2", componentes.item(res, f"Dois grupos: {nome_a} × {nome_b}", variavel, [fig])
+            )
 
 with aba_var:
     st.caption(
@@ -55,4 +60,8 @@ with aba_var:
             componentes.resultado(var)
             st.write(f"Levene (mediana): p {p_valor(var.p_levene)}")
             st.write(f"Variâncias: {nome_a} = {num(float(a.var(ddof=1)))}; {nome_b} = {num(float(b.var(ddof=1)))}")
+            componentes.conclusao(var, f"{nome_a} e {nome_b}")
             componentes.calculo(var)
+            componentes.botao_relatorio(
+                "v2", componentes.item(var, f"Variâncias: {nome_a} × {nome_b}", f"{nome_a} e {nome_b}")
+            )

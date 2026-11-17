@@ -22,12 +22,14 @@ with aba_t:
         var = st.selectbox("Variável", numericas, key="t1_var")
         mu0 = st.number_input("Valor de referência (μ₀)", value=0.0, key="t1_mu0", format="%.4f")
         alt = componentes.escolher_alternativa("t1_alt", "média > μ₀", "média < μ₀")
+        variavel = componentes.nome_variavel("t1_nome", var)
         try:
             res = analisar_uma_amostra(df[var].to_numpy(dtype=float), mu0, alpha=alpha, alternativa=alt, nome=var)
         except ErroDeDados as exc:
             st.error(str(exc))
         else:
-            componentes.mostrar(res)
+            componentes.mostrar(res, variavel)
+            componentes.botao_relatorio("t1", componentes.item(res, f"Uma amostra: {var}", variavel))
 
 with aba_z:
     if ativa is None:
@@ -40,6 +42,7 @@ with aba_z:
         mu0_z = c1.number_input("Valor de referência (μ₀)", value=0.0, key="z1_mu0", format="%.4f")
         sigma = c2.number_input("Desvio padrão populacional conhecido (σ)", value=1.0, min_value=0.0, key="z1_sigma")
         alt_z = componentes.escolher_alternativa("z1_alt", "média > μ₀", "média < μ₀")
+        variavel_z = componentes.nome_variavel("z1_nome", var_z)
         try:
             res_z = analisar_z(
                 df[var_z].to_numpy(dtype=float), mu0_z, sigma, alpha=alpha, alternativa=alt_z, nome=var_z
@@ -47,7 +50,8 @@ with aba_z:
         except ErroDeDados as exc:
             st.error(str(exc))
         else:
-            componentes.mostrar(res_z)
+            componentes.mostrar(res_z, variavel_z)
+            componentes.botao_relatorio("z1", componentes.item(res_z, f"Teste Z: {var_z}", variavel_z))
 
 with aba_p:
     c1, c2, c3 = st.columns(3)
@@ -55,9 +59,11 @@ with aba_p:
     n = c2.number_input("Total (n)", min_value=1, value=20, step=1, key="p1_n")
     p0 = c3.number_input("Proporção de referência (p₀)", min_value=0.0, max_value=1.0, value=0.5, key="p1_p0")
     alt_p = componentes.escolher_alternativa("p1_alt", "p > p₀", "p < p₀")
+    variavel_p = componentes.nome_variavel("p1_nome", "ocorrência")
     try:
         res_p = analisar_uma_proporcao(int(x), int(n), float(p0), alpha=alpha, alternativa=alt_p)
     except ErroDeDados as exc:
         st.error(str(exc))
     else:
-        componentes.mostrar(res_p)
+        componentes.mostrar(res_p, variavel_p)
+        componentes.botao_relatorio("p1", componentes.item(res_p, "Uma proporção", variavel_p))

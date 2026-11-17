@@ -79,3 +79,13 @@ def seletor_alpha() -> None:
         format_func=lambda a: f"{a:.2f}".replace(".", ",") + (" (95% de confiança)" if a == 0.05 else " (99%)"),
         key=ALPHA,
     )
+
+
+RELATORIO = "relatorio_itens"
+
+
+def relatorio() -> list:
+    """Itens do relatório da sessão (``statlab.relatorio.ItemRelatorio``), na ordem em que foram adicionados."""
+    if RELATORIO not in st.session_state:
+        st.session_state[RELATORIO] = []
+    return st.session_state[RELATORIO]

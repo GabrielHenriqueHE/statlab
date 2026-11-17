@@ -10,6 +10,8 @@ App de análise estatística didática em pt-BR (disciplina Probabilidade e Esta
 - `core/uma_amostra.py` (t/Wilcoxon, Z, uma proporção) e `core/qui_quadrado.py` (independência, aderência) — fora da apostila; avisam isso. IC exibido é sempre o bilateral de 95%, mesmo com H₁ unilateral.
 - `core/regressao_multipla.py` e `core/anova_dois_fatores.py` — fora da apostila; aceitação contra o exemplo fatorial do guia do Minitab (`tests/fixtures/minitab_exemplos.json`). ANOVA de 2 fatores usa SQ ajustadas (tipo III, soma zero), como o Minitab.
 - `core/assistente.py` — F4: árvore da Tabela 2 (`decidir`) e análise com explicação do caminho (`analisar` + `caminho`). Testado com os casos da apostila e do gabarito (cada um chega ao teste que o material escolheu).
+- `core/conclusoes.py` — F5: `concluir(res, variavel=...)` escreve a conclusão no padrão da seção 10 da apostila (texto conferido contra os exemplos resolvidos). Nunca afirmar H₀ ("as médias são iguais").
+- `relatorio/relatorio.py` — itens do relatório (análise, pré-requisitos, resultado, conclusão, avisos, cálculo, gráficos) e exportação Markdown/HTML (HTML autocontido, sem CDN).
 - `ui/componentes.py` — peças comuns das páginas de teste (hipótese alternativa, cartões, resultado, cálculo, escolha de grupos em colunas ou empilhados). α global em `estado.alpha()` (barra lateral: 0,05 ou 0,01).
 - `src/statlab/relatorio/` — exportação HTML/Markdown (fase F5).
 - `tests/` — pytest. `tests/fixtures/` — dados de referência.

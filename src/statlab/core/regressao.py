@@ -19,6 +19,8 @@ class Regressao(Resultado):
     """
 
     permitida: bool = False
+    nome_x: str = "x"
+    nome_y: str = "y"
     a: float | None = None
     b: float | None = None
     r2: float | None = None
@@ -86,6 +88,8 @@ def analisar_regressao(
                 alpha=alpha,
                 n=cor.n,
                 permitida=False,
+                nome_x=nome_x,
+                nome_y=nome_y,
                 correlacao_p=cor.p,
                 prerequisitos=prereq,
                 passos=passos,
@@ -106,6 +110,8 @@ def analisar_regressao(
         alpha=alpha,
         n=cor.n,
         permitida=permitida,
+        nome_x=nome_x,
+        nome_y=nome_y,
         a=a,
         b=b,
         r2=r2,

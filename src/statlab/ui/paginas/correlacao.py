@@ -38,6 +38,7 @@ except ErroDeDados as exc:
 
 componentes.prerequisitos(cor)
 componentes.resultado(cor)
+componentes.conclusao(cor)
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("r (Pearson)", num(cor.r, 3))
 m2.metric("rₛ (Spearman)", num(cor.r_s, 3))
@@ -72,9 +73,15 @@ if reg.permitida:
     st.metric(f"ŷ para {x} = {num(x0)}", num(yhat, 3))
     if aviso_ext:
         st.warning(aviso_ext)
+    componentes.conclusao(reg)
 else:
     st.info("A regressão não deve ser feita: a correlação não é significativa.")
 
-st.plotly_chart(
-    graficos.dispersao(cor.x_usado, cor.y_usado, linha_regressao=reg.permitida, nome_x=x, nome_y=y, titulo=f"{y} × {x}")
+fig = graficos.dispersao(
+    cor.x_usado, cor.y_usado, linha_regressao=reg.permitida, nome_x=x, nome_y=y, titulo=f"{y} × {x}"
 )
+st.plotly_chart(fig)
+itens = [componentes.item(cor, f"Correlação: {x} × {y}", figuras=[fig])]
+if reg.permitida:
+    itens.append(componentes.item(reg, f"Regressão: {y} em função de {x}"))
+componentes.botao_relatorio("cor", *itens)

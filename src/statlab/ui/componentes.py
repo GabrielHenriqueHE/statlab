@@ -5,10 +5,14 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import streamlit as st
+from plotly import graph_objects as go
 
 from statlab.core import tabela
+from statlab.core.conclusoes import concluir
 from statlab.core.formatacao import num, p_valor
 from statlab.core.resultados import ATENCAO, FALHA, OK, Resultado
+from statlab.relatorio import ItemRelatorio, item_de
+from statlab.ui import estado
 
 ICONES = {OK: "✅", ATENCAO: "⚠️", FALHA: "❌"}
 ALTERNATIVAS = {"Diferente (bilateral)": "bilateral", "Maior (unilateral)": "maior", "Menor (unilateral)": "menor"}
@@ -80,12 +84,36 @@ def calculo(res: Resultado) -> None:
             st.text(linha)
 
 
-def mostrar(res: Resultado) -> None:
-    """Bloco completo: pré-requisitos, resultado, avisos e cálculo."""
+def nome_variavel(chave: str, padrao: str) -> str:
+    """Campo para o nome da variável usado na frase da conclusão (ex.: "tempo de entrega")."""
+    return st.text_input("Como chamar a variável na conclusão", value=padrao, key=chave).strip() or padrao
+
+
+def conclusao(res: Resultado, variavel: str = "a variável") -> None:
+    st.markdown("**Conclusão**")
+    st.markdown(f"> {concluir(res, variavel=variavel)}")
+
+
+def mostrar(res: Resultado, variavel: str = "a variável") -> None:
+    """Bloco completo: pré-requisitos, resultado, conclusão, avisos e cálculo."""
     prerequisitos(res)
     resultado(res)
+    conclusao(res, variavel)
     avisos(res)
     calculo(res)
+
+
+def item(
+    res: Resultado, titulo: str, variavel: str = "a variável", figuras: list[go.Figure] | None = None
+) -> ItemRelatorio:
+    return item_de(res, titulo=titulo, variavel=variavel, figuras=figuras or [])
+
+
+def botao_relatorio(chave: str, *itens: ItemRelatorio) -> None:
+    """Botão que acrescenta os itens ao relatório da sessão (página Relatório)."""
+    if st.button("Adicionar ao relatório", key=f"rel_{chave}"):
+        estado.relatorio().extend(itens)
+        st.success(f"Adicionado ao relatório ({len(estado.relatorio())} item(ns)). Veja a página **Relatório**.")
 
 
 def exigir_numericas(df: pd.DataFrame, nome: str, minimo: int = 1) -> list[str]:

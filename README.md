@@ -7,7 +7,7 @@ Ferramenta de análise estatística didática, em português, para a disciplina 
 3. mostra o **cálculo passo a passo**;
 4. redige a **conclusão** no padrão da apostila, com nível de confiança e intervalo.
 
-> **Status:** F0 a F4 concluídas: núcleo estatístico, dados, descritivas, gráficos e as telas de todos os testes (normalidade, uma amostra, dois grupos, pareado, ANOVA, proporções, qui-quadrado, correlação e regressão, regressão múltipla, ANOVA de dois fatores), com cartões ✅/⚠️/❌ de pré-requisitos e α configurável. Inclui o assistente "Qual teste usar?" (F4). Próximas: F5 conclusões e relatório → F6 prática. O comparativo com o Minitab está em [docs/funcionalidades_minitab.md](docs/funcionalidades_minitab.md).
+> **Status:** F0 a F5 concluídas: núcleo estatístico, dados, descritivas, gráficos e as telas de todos os testes (normalidade, uma amostra, dois grupos, pareado, ANOVA, proporções, qui-quadrado, correlação e regressão, regressão múltipla, ANOVA de dois fatores), com cartões ✅/⚠️/❌ de pré-requisitos e α configurável. Inclui o assistente "Qual teste usar?" (F4), conclusões no padrão da apostila e relatório em HTML/Markdown (F5). Próxima: F6 prática com o gerador. O comparativo com o Minitab está em [docs/funcionalidades_minitab.md](docs/funcionalidades_minitab.md).
 
 ## Instalação
 

@@ -54,6 +54,7 @@ with aba_ind:
             c2.markdown("**Esperados (se independentes)**")
             c2.dataframe(_tabela_formatada(res.esperados, res.linhas, res.colunas, 2))
             componentes.mostrar(res)
+            componentes.botao_relatorio("qi", componentes.item(res, "Qui-quadrado de independência"))
 
 with aba_ad:
     st.caption("H₀: as contagens seguem as proporções esperadas (iguais, se não informadas).")
@@ -93,4 +94,5 @@ with aba_ad:
                 ),
                 hide_index=True,
             )
-            componentes.mostrar(res_a)
+            componentes.mostrar(res_a, "as categorias")
+            componentes.botao_relatorio("qa", componentes.item(res_a, "Qui-quadrado de aderência", "as categorias"))

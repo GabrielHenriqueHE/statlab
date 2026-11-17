@@ -75,6 +75,8 @@ def forca(r: float) -> str:
 
 @dataclass(kw_only=True)
 class Correlacao(Resultado):
+    nome_x: str = "x"
+    nome_y: str = "y"
     metodo: str = ""  # "Pearson" ou "Spearman" (o usado na decisão)
     r: float = 0.0
     r_s: float = 0.0
@@ -195,6 +197,8 @@ def analisar_correlacao(
         p=p_dec,
         n=n,
         metodo=metodo,
+        nome_x=nome_x,
+        nome_y=nome_y,
         r=r,
         r_s=rs,
         p_pearson=p_p,
