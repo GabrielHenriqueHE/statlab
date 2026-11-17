@@ -13,6 +13,7 @@ paginas = {
         st.Page("paginas/graficos.py", title="Gráficos"),
     ],
     "Testes de hipótese": [
+        st.Page("paginas/assistente.py", title="Qual teste usar?"),
         st.Page("paginas/normalidade.py", title="Normalidade"),
         st.Page("paginas/uma_amostra.py", title="Uma amostra (t, Z, proporção)"),
         st.Page("paginas/dois_grupos.py", title="Dois grupos independentes"),

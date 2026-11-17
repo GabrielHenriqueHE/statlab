@@ -161,7 +161,7 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 
 | Item | Situação | Observação |
 |---|---|---|
-| Assistente "Qual teste usar?" (árvore de decisão) | 🟡 | planejado para F4 |
+| Assistente "Qual teste usar?" (árvore de decisão) | ✅ F4 | por perguntas (com pendências para "não sei") ou rodando nos dados, com o caminho da decisão |
 | Conclusões em pt-BR no padrão da apostila | 🟡 | F5 |
 | Relatório HTML/Markdown exportável | 🟡 | F5 |
 | Gerador de listas com gabarito (prática) | 🟡 | F6 |
@@ -185,3 +185,4 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
    qui-quadrado). Próximo: regressão múltipla e ANOVA de 2 fatores; depois F4 e F5.
 4. **Andamento (16/11/2026):** regressão múltipla e ANOVA de 2 fatores concluídas (validadas contra a saída do
    Minitab no exemplo do cap. 5 do guia). Próximo: F4 (assistente) e F5 (conclusões e relatório).
+5. **Andamento (16/11/2026):** F4 concluída (assistente). Próximo: F5 (conclusões e relatório).
