@@ -44,8 +44,8 @@ def test_arvore_de_decisao(objetivo, respostas, esperado):
 @pytest.mark.parametrize(
     "objetivo, respostas, trecho",
     [
-        ("relacao", {}, "Normalidade"),
-        ("dois_grupos", {}, "Normalidade"),
+        ("relacao", {}, "Teste de normalidade"),
+        ("dois_grupos", {}, "Teste de normalidade"),
         ("dois_grupos", {"normal": True}, "variâncias"),
         ("tres_grupos", {"normal": True}, "razão"),
         ("proporcoes", {}, "n·p·q"),

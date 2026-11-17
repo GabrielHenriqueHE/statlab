@@ -1,13 +1,17 @@
-"""Estado compartilhado entre páginas: as worksheets da sessão e qual está ativa (como no Minitab)."""
+"""Estado da sessão: as worksheets abertas (como no Minitab) e a janela de sessão."""
 
 from __future__ import annotations
 
 import pandas as pd
 import streamlit as st
 
+from statlab.relatorio import ItemRelatorio
+
 PLANILHAS = "planilhas"
 ATIVA = "planilha_ativa"
 SELETOR = "seletor_worksheet"
+SESSAO = "sessao_itens"
+COMANDO = "comando_aberto"
 
 
 def planilhas() -> dict[str, pd.DataFrame]:
@@ -51,10 +55,10 @@ def ativa() -> tuple[str, pd.DataFrame] | None:
 
 
 def seletor_lateral() -> None:
-    """Seletor da worksheet ativa na barra lateral (visível em todas as páginas)."""
+    """Seletor da worksheet ativa na barra lateral."""
     dados = planilhas()
     if not dados:
-        st.sidebar.caption("Nenhuma worksheet ainda. Importe ou cole dados na página **Dados**.")
+        st.sidebar.caption("Nenhuma worksheet ainda. Use **Dados › Importar** ou **Dados › Colar**.")
         return
     nomes = list(dados)
     atual = ativa()[0]  # type: ignore[index]
@@ -62,30 +66,46 @@ def seletor_lateral() -> None:
     st.session_state[ATIVA] = escolha
 
 
-ALPHA = "alpha_global"
-ALPHAS = (0.05, 0.01)
+# --------------------------------------------------------------------------- janela de sessão
 
 
-def alpha() -> float:
-    """Nível de significância escolhido na barra lateral (padrão 0,05)."""
-    valor = st.session_state.get(ALPHA, ALPHAS[0])
-    return float(valor) if valor in ALPHAS else ALPHAS[0]
+def sessao() -> list[ItemRelatorio]:
+    """Saídas acumuladas dos comandos, na ordem em que foram executados."""
+    if SESSAO not in st.session_state:
+        st.session_state[SESSAO] = []
+    return st.session_state[SESSAO]
 
 
-def seletor_alpha() -> None:
-    st.sidebar.radio(
-        "Nível de significância (α)",
-        ALPHAS,
-        format_func=lambda a: f"{a:.2f}".replace(".", ",") + (" (95% de confiança)" if a == 0.05 else " (99%)"),
-        key=ALPHA,
-    )
+def registrar(*itens: ItemRelatorio) -> None:
+    """Acrescenta blocos à janela de sessão."""
+    sessao().extend(itens)
 
 
-RELATORIO = "relatorio_itens"
+def limpar_sessao() -> None:
+    st.session_state[SESSAO] = []
 
 
-def relatorio() -> list:
-    """Itens do relatório da sessão (``statlab.relatorio.ItemRelatorio``), na ordem em que foram adicionados."""
-    if RELATORIO not in st.session_state:
-        st.session_state[RELATORIO] = []
-    return st.session_state[RELATORIO]
+def remover_da_sessao(indice: int) -> None:
+    itens = sessao()
+    if 0 <= indice < len(itens):
+        del itens[indice]
+
+
+# --------------------------------------------------------------------------- diálogo aberto
+
+
+def abrir_comando(chave: str) -> None:
+    """Marca qual comando está com o diálogo aberto.
+
+    O estado é explícito porque o diálogo precisa ser redesenhado a cada rerun: sem isso, mexer em
+    qualquer opção dentro dele o fecharia.
+    """
+    st.session_state[COMANDO] = chave
+
+
+def fechar_comando() -> None:
+    st.session_state[COMANDO] = None
+
+
+def comando_aberto() -> str | None:
+    return st.session_state.get(COMANDO)

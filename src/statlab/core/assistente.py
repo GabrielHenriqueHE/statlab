@@ -16,7 +16,7 @@ class Objetivo:
     descricao: str
     parametrico: str
     nao_parametrico: str
-    pagina: str
+    comando: str
     prerequisitos: str
 
 
@@ -28,7 +28,7 @@ OBJETIVOS: dict[str, Objetivo] = {
             "Relação entre duas variáveis quantitativas (x, y)",
             "Correlação de Pearson",
             "Correlação de Spearman",
-            "Correlação e regressão",
+            "Estat › Estatísticas básicas › Correlação",
             "pares (x, y), padrão de reta, normalidade de x e de y (sem atalho do TCL), outliers tratados",
         ),
         Objetivo(
@@ -36,7 +36,7 @@ OBJETIVOS: dict[str, Objetivo] = {
             "Comparar duas médias de grupos independentes",
             "t independente (Welch se as variâncias forem diferentes)",
             "Mann-Whitney",
-            "Dois grupos independentes",
+            "Estat › Estatísticas básicas › t de 2 amostras",
             "normalidade de cada grupo (ou n ≥ 30) e teste F de variâncias",
         ),
         Objetivo(
@@ -44,7 +44,7 @@ OBJETIVOS: dict[str, Objetivo] = {
             "Comparar antes × depois (mesmos indivíduos)",
             "t pareado",
             "Wilcoxon",
-            "Antes × depois (pareado)",
+            "Estat › Estatísticas básicas › t pareado",
             "normalidade das diferenças (ou n ≥ 30)",
         ),
         Objetivo(
@@ -52,7 +52,7 @@ OBJETIVOS: dict[str, Objetivo] = {
             "Comparar três ou mais médias",
             "ANOVA de 1 fator (+ Tukey se significativa)",
             "Kruskal-Wallis (+ comparações 2 a 2)",
-            "Três ou mais grupos (ANOVA)",
+            "Estat › ANOVA › Um fator",
             "normalidade de cada grupo (ou n ≥ 30) e maior variância até 9× a menor",
         ),
         Objetivo(
@@ -60,7 +60,7 @@ OBJETIVOS: dict[str, Objetivo] = {
             "Comparar proporções (sim/não) entre dois grupos",
             "Teste de duas proporções (z)",
             "Exato de Fisher",
-            "Duas proporções",
+            "Estat › Estatísticas básicas › 2 proporções",
             "n·p·q ≥ 5 (apostila) e n·p ≥ 5, n·q ≥ 5",
         ),
         Objetivo(
@@ -68,7 +68,7 @@ OBJETIVOS: dict[str, Objetivo] = {
             "Associação entre duas variáveis categóricas",
             "Qui-quadrado de independência",
             "Exato de Fisher (tabela 2 × 2)",
-            "Qui-quadrado",
+            "Estat › Tabelas › Qui-quadrado de independência",
             "contagens esperadas: nenhuma < 1 e no máximo 20% < 5 (fora da apostila)",
         ),
         Objetivo(
@@ -76,7 +76,7 @@ OBJETIVOS: dict[str, Objetivo] = {
             "Comparar uma média com um valor de referência",
             "t para uma amostra",
             "Wilcoxon para uma amostra",
-            "Uma amostra (t, Z, proporção)",
+            "Estat › Estatísticas básicas › t de 1 amostra",
             "normalidade (ou n ≥ 30) (fora da apostila)",
         ),
     )
@@ -90,7 +90,7 @@ class Decisao:
     teste: str | None
     caminho: list[str] = field(default_factory=list)
     pendencias: list[str] = field(default_factory=list)
-    pagina: str = ""
+    comando: str = ""
 
 
 def _objetivo(chave: str) -> Objetivo:
@@ -121,12 +121,14 @@ def decidir(
     pendencias: list[str] = []
 
     def fim(teste: str | None) -> Decisao:
-        return Decisao(teste=teste, caminho=caminho, pendencias=pendencias, pagina=obj.pagina)
+        return Decisao(teste=teste, caminho=caminho, pendencias=pendencias, comando=obj.comando)
 
     if objetivo == "relacao":
         caminho.append(f"x e y são normais? {_resposta(normal)} (na correlação não vale o atalho n ≥ 30)")
         if normal is None:
-            pendencias.append("Verifique a normalidade de x e de y na página Normalidade (Shapiro-Wilk).")
+            pendencias.append(
+                "Verifique a normalidade de x e de y em Estat › Estatísticas básicas › Teste de normalidade."
+            )
             return fim(None)
         return fim(obj.parametrico if normal else obj.nao_parametrico)
 
@@ -135,7 +137,7 @@ def decidir(
         caminho.append(f"{alvo[0].upper()}{alvo[1:]}? {_resposta(normal)}")
         caminho.append(f"n ≥ 30 (em cada grupo)? {'sim' if n_grande else 'não'}")
         if normal is None and not n_grande:
-            pendencias.append("Verifique a normalidade na página Normalidade (Shapiro-Wilk).")
+            pendencias.append("Verifique a normalidade em Estat › Estatísticas básicas › Teste de normalidade.")
             return fim(None)
         norm_ok = bool(normal) or n_grande
         if not norm_ok:
@@ -144,13 +146,13 @@ def decidir(
         if objetivo == "dois_grupos":
             caminho.append(f"Variâncias iguais (teste F)? {_resposta(variancias_iguais)}")
             if variancias_iguais is None:
-                pendencias.append("Verifique as variâncias na página Dois grupos, aba Comparar variâncias.")
+                pendencias.append("Verifique as variâncias em Estat › Variâncias › Teste F.")
                 return fim(None)
             return fim("t independente (variância combinada)" if variancias_iguais else "t de Welch")
         if objetivo == "tres_grupos":
             caminho.append(f"Maior variância até 9× a menor? {_resposta(razao_ate_9)}")
             if razao_ate_9 is None:
-                pendencias.append("Calcule a razão maior/menor variância (página Estatísticas descritivas).")
+                pendencias.append("Calcule a razão maior/menor variância em Estat › Variâncias › Bartlett / Levene.")
                 return fim(None)
             if not razao_ate_9:
                 caminho.append("Razão de variâncias acima de 9 → teste não paramétrico")
@@ -167,7 +169,7 @@ def decidir(
     # associação
     caminho.append(f"Contagens esperadas suficientes (Cochran)? {_resposta(esperados_ok)}")
     if esperados_ok is None:
-        pendencias.append("A página Qui-quadrado calcula as contagens esperadas e verifica o critério.")
+        pendencias.append("Estat › Tabelas › Qui-quadrado de independência mostra as contagens esperadas e o critério.")
         return fim(None)
     if esperados_ok:
         return fim(obj.parametrico)

@@ -1,41 +1,39 @@
-"""Entrada do app statlab (Streamlit). Rode com ``uv run statlab`` ou ``streamlit run src/statlab/ui/app.py``."""
+"""Entrada do app statlab (Streamlit). Rode com ``uv run statlab``.
 
+Layout no modelo do Minitab: barra de menus em cima, worksheet à esquerda e janela de sessão à
+direita. Cada comando do menu abre um diálogo com as suas opções e manda a saída para a sessão.
+"""
+
+import pandas as pd
 import streamlit as st
 
-from statlab.ui import estado
+from statlab.ui import estado, menu, sessao
 
 st.set_page_config(page_title="statlab", layout="wide")
 
-paginas = {
-    "Dados": [
-        st.Page("paginas/dados.py", title="Dados", default=True),
-        st.Page("paginas/descritiva.py", title="Estatísticas descritivas"),
-        st.Page("paginas/graficos.py", title="Gráficos"),
-    ],
-    "Testes de hipótese": [
-        st.Page("paginas/assistente.py", title="Qual teste usar?"),
-        st.Page("paginas/normalidade.py", title="Normalidade"),
-        st.Page("paginas/uma_amostra.py", title="Uma amostra (t, Z, proporção)"),
-        st.Page("paginas/dois_grupos.py", title="Dois grupos independentes"),
-        st.Page("paginas/pareado.py", title="Antes × depois (pareado)"),
-        st.Page("paginas/anova.py", title="Três ou mais grupos (ANOVA)"),
-        st.Page("paginas/anova_dois_fatores.py", title="ANOVA de dois fatores"),
-        st.Page("paginas/variancias.py", title="Variâncias"),
-        st.Page("paginas/proporcoes.py", title="Duas proporções"),
-        st.Page("paginas/qui_quadrado.py", title="Qui-quadrado"),
-    ],
-    "Relações": [
-        st.Page("paginas/correlacao.py", title="Correlação e regressão"),
-        st.Page("paginas/regressao_multipla.py", title="Regressão múltipla"),
-    ],
-    "Relatório e prática": [
-        st.Page("paginas/relatorio.py", title="Relatório"),
-        st.Page("paginas/pratica.py", title="Prática"),
-    ],
-    "Ajuda": [
-        st.Page("paginas/ajuda.py", title="Como usar"),
-    ],
-}
+st.markdown("### statlab")
+menu.barra()
+
 estado.seletor_lateral()
-estado.seletor_alpha()
-st.navigation(paginas, expanded=True).run()
+st.sidebar.caption(
+    "O statlab executa o comando que você escolher, com as opções que você marcar. "
+    "Ele não troca o teste, não exclui dados e não escreve a conclusão."
+)
+
+esquerda, direita = st.columns([1.1, 1])
+
+with esquerda:
+    ativa = estado.ativa()
+    if ativa is None:
+        st.subheader("Worksheet")
+        st.info("Nenhuma worksheet aberta. Use **Dados › Abrir arquivo** ou **Dados › Colar dados**.")
+    else:
+        nome, df = ativa
+        st.subheader(f"Worksheet: {nome}")
+        editado = st.data_editor(df, num_rows="dynamic", width="stretch", height=520, key=f"ws_{nome}")
+        if not editado.equals(df):
+            estado.salvar(nome, pd.DataFrame(editado))
+        st.caption(f"{len(df)} linha(s) × {df.shape[1]} coluna(s). Edite as células diretamente.")
+
+with direita:
+    sessao.painel()

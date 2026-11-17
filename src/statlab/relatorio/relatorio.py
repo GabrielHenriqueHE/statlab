@@ -11,6 +11,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 
+import pandas as pd
 from plotly import graph_objects as go
 
 from statlab.core.formatacao import num, p_valor
@@ -21,14 +22,26 @@ ICONES = {OK: "✅", ATENCAO: "⚠️", FALHA: "❌"}
 
 @dataclass
 class ItemRelatorio:
+    """Um bloco da janela de sessão: o que um comando produziu."""
+
     titulo: str
-    teste: str
-    resultado: list[str]
-    verificacoes: list[tuple[str, str, str]]  # (ícone, nome, detalhe)
-    passos: list[str]
-    avisos: list[str]
+    teste: str = ""
+    resultado: list[str] = field(default_factory=list)
+    verificacoes: list[tuple[str, str, str]] = field(default_factory=list)  # (ícone, nome, detalhe)
+    passos: list[str] = field(default_factory=list)
+    avisos: list[str] = field(default_factory=list)
+    tabelas: list[tuple[str, pd.DataFrame]] = field(default_factory=list)
     figuras: list[go.Figure] = field(default_factory=list)
     criado_em: datetime = field(default_factory=datetime.now)
+
+
+def _tabela_markdown(tab: pd.DataFrame) -> list[str]:
+    """Tabela em Markdown sem depender de `tabulate`."""
+    colunas = [str(c) for c in tab.columns]
+    linhas = ["| " + " | ".join(colunas) + " |", "|" + "|".join(["---"] * len(colunas)) + "|"]
+    for _, linha in tab.iterrows():
+        linhas.append("| " + " | ".join("" if v is None else str(v) for v in linha) + " |")
+    return linhas
 
 
 def resumo_resultado(res: Resultado) -> list[str]:
@@ -55,11 +68,14 @@ def item_de(
     res: Resultado,
     *,
     titulo: str,
+    tabelas: Sequence[tuple[str, pd.DataFrame]] = (),
     figuras: Sequence[go.Figure] = (),
 ) -> ItemRelatorio:
+    """Bloco de sessão a partir de um ``Resultado`` do núcleo."""
     return ItemRelatorio(
         titulo=titulo,
         teste=res.nome,
+        tabelas=list(tabelas),
         resultado=resumo_resultado(res),
         verificacoes=[(ICONES.get(v.status, "•"), v.nome, v.detalhe) for v in res.verificacoes],
         passos=list(res.passos),
@@ -75,7 +91,10 @@ def para_markdown(itens: Sequence[ItemRelatorio], titulo: str = "Relatório — 
         if item.verificacoes:
             partes += ["### Diagnósticos", ""] + [f"- {ic} **{nome}** — {det}" for ic, nome, det in item.verificacoes]
             partes.append("")
-        partes += ["### Resultado", ""] + [f"- {linha}" for linha in item.resultado] + [""]
+        for nome_tab, tab in item.tabelas:
+            partes += [f"### {nome_tab}", "", *_tabela_markdown(tab), ""]
+        if item.resultado:
+            partes += ["### Resultado", ""] + [f"- {linha}" for linha in item.resultado] + [""]
         if item.avisos:
             partes += ["### Avisos", ""] + [f"- {a}" for a in item.avisos] + [""]
         if item.passos:
@@ -115,7 +134,12 @@ def para_html(itens: Sequence[ItemRelatorio], titulo: str = "Relatório — stat
             corpo.append("<h3>Diagnósticos</h3><ul>")
             corpo += [f"<li>{ic} <strong>{e(nome)}</strong> — {e(det)}</li>" for ic, nome, det in item.verificacoes]
             corpo.append("</ul>")
-        corpo.append("<h3>Resultado</h3><ul>" + "".join(f"<li>{e(linha)}</li>" for linha in item.resultado) + "</ul>")
+        for nome_tab, tab in item.tabelas:
+            corpo.append(f"<h3>{e(nome_tab)}</h3>" + tab.to_html(index=False, border=0))
+        if item.resultado:
+            corpo.append(
+                "<h3>Resultado</h3><ul>" + "".join(f"<li>{e(linha)}</li>" for linha in item.resultado) + "</ul>"
+            )
         corpo += [f'<p class="aviso">{e(a)}</p>' for a in item.avisos]
         for fig in item.figuras:
             corpo.append(fig.to_html(full_html=False, include_plotlyjs=not plotly_incluido))
