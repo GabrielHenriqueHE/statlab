@@ -8,6 +8,7 @@ App de análise estatística didática em pt-BR (disciplina Probabilidade e Esta
 - `src/statlab/graficos/` — figuras Plotly puras (sem Streamlit) e exportação (`exportar.py`): **somente HTML interativo**, por decisão do usuário (sem Kaleido/Chrome).
 - `core/importacao.py` (CSV/XLSX/texto colado) e `core/tabela.py` (empilhar, desempilhar, pares completos) — entrada de dados, sem regras estatísticas.
 - `core/uma_amostra.py` (t/Wilcoxon, Z, uma proporção) e `core/qui_quadrado.py` (independência, aderência) — fora da apostila; avisam isso. IC exibido é sempre o bilateral de 95%, mesmo com H₁ unilateral.
+- `core/regressao_multipla.py` e `core/anova_dois_fatores.py` — fora da apostila; aceitação contra o exemplo fatorial do guia do Minitab (`tests/fixtures/minitab_exemplos.json`). ANOVA de 2 fatores usa SQ ajustadas (tipo III, soma zero), como o Minitab.
 - `ui/componentes.py` — peças comuns das páginas de teste (hipótese alternativa, cartões, resultado, cálculo, escolha de grupos em colunas ou empilhados). α global em `estado.alpha()` (barra lateral: 0,05 ou 0,01).
 - `src/statlab/relatorio/` — exportação HTML/Markdown (fase F5).
 - `tests/` — pytest. `tests/fixtures/` — dados de referência.

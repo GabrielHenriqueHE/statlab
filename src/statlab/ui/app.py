@@ -18,11 +18,13 @@ paginas = {
         st.Page("paginas/dois_grupos.py", title="Dois grupos independentes"),
         st.Page("paginas/pareado.py", title="Antes × depois (pareado)"),
         st.Page("paginas/anova.py", title="Três ou mais grupos (ANOVA)"),
+        st.Page("paginas/anova_dois_fatores.py", title="ANOVA de dois fatores"),
         st.Page("paginas/proporcoes.py", title="Duas proporções"),
         st.Page("paginas/qui_quadrado.py", title="Qui-quadrado"),
     ],
     "Relações": [
         st.Page("paginas/correlacao.py", title="Correlação e regressão"),
+        st.Page("paginas/regressao_multipla.py", title="Regressão múltipla"),
     ],
 }
 estado.seletor_lateral()

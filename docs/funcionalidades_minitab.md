@@ -48,10 +48,10 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 | Gráfico de séries temporais | ✅ F2 | rótulos opcionais no eixo X |
 | Correlograma (mapa de calor de r) | ✅ F2 | Pearson, pares completos por par de colunas |
 | Matriz de dispersão | ✅ F2 | pares completos em todas as colunas |
-| Gráfico de efeitos principais / interações | 🔵 | vem com DOE |
+| Gráfico de efeitos principais / interações | ✅ | na ANOVA de 2 fatores |
 | Gráfico de Tukey (ICs simultâneos) | ✅ F3 | página ANOVA, quando o Tukey é aplicado |
 | Diagrama de pontos, mapa de calor genérico | 🔵 | baixa prioridade |
-| Gráficos de resíduos (4 em 1) | 🔵 | depende de ANOVA/regressão na tela |
+| Gráficos de resíduos (4 em 1) | ✅ | regressão múltipla e ANOVA de 2 fatores |
 | Construtor de gráficos interativo (arrastar variáveis) | 🔵 | hoje uma página por tipo; o Minitab tem uma galeria |
 | Layout de vários gráficos / anotações | 🔵 | |
 | Gráficos de contorno, 3D, superfície | ⚪ | DOE / superfície de resposta |
@@ -104,7 +104,7 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 | Item do Minitab | Situação | Observação |
 |---|---|---|
 | Regressão linear simples (com R², coeficientes, previsão) | ✅ F3 | só com correlação significativa (forçável, com aviso); aviso de extrapolação |
-| Regressão linear múltipla | 🔵 | o próximo passo natural depois da simples |
+| Regressão linear múltipla | ✅ | coeficientes com VIF, S, R², R²(aj), R²(pred), ANOVA, predição com IC e IP; validada contra o guia do Minitab |
 | Regressão polinomial | 🔵 | |
 | Regressão não linear, ortogonal, PLS, Poisson, logística, Cox | ⚪ | fora da disciplina |
 | Stepwise, melhores subconjuntos | ⚪ | depois da múltipla, se houver demanda |
@@ -116,7 +116,7 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 | ANOVA de 1 fator (tabela SQ/QM/F/p/R²) | ✅ F3 | página Três ou mais grupos |
 | Tukey (comparações múltiplas) | ✅ F3 | tabela + gráfico de ICs simultâneos |
 | ANOVA de Welch (conferência) | ✅ F3 | mostrada como conferência |
-| ANOVA de 2 fatores / modelo linear geral | 🔵 | prioridade média |
+| ANOVA de 2 fatores / modelo linear geral | ✅ / 🔵 | 2 fatores com ou sem interação (SQ ajustadas, validada contra o guia); modelo linear geral 🔵 |
 | Modelos mistos, MANOVA | ⚪ | |
 
 ## Qualidade (Cartas de controle, capacidade, medição, ferramentas)
@@ -139,7 +139,7 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 | Item do Minitab | Situação | Observação |
 |---|---|---|
 | Experimento fatorial de 2 níveis (criar, analisar, Pareto, efeitos) | 🔵 | Getting Started, cap. 5 — exemplo completo no guia |
-| Gráficos de efeitos principais e de interação | 🔵 | depende do DOE |
+| Gráficos de efeitos principais e de interação | ✅ | na ANOVA de 2 fatores; criar o experimento ainda é 🔵 |
 | Plackett-Burman, triagem, superfície de resposta, mistura, Taguchi | ⚪ | |
 
 ## Séries temporais
@@ -183,3 +183,5 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
    qui-quadrado) → regressão múltipla e ANOVA de 2 fatores → F4/F5 → DOE e cartas de controle sob demanda.
 3. **Andamento (16/11/2026):** F3 concluída junto com os testes simples (t, Z e proporção de uma amostra,
    qui-quadrado). Próximo: regressão múltipla e ANOVA de 2 fatores; depois F4 e F5.
+4. **Andamento (16/11/2026):** regressão múltipla e ANOVA de 2 fatores concluídas (validadas contra a saída do
+   Minitab no exemplo do cap. 5 do guia). Próximo: F4 (assistente) e F5 (conclusões e relatório).

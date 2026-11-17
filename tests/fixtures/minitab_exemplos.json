@@ -1,0 +1,24 @@
+{
+ "_fonte": "MinitabGettingStarted-v032024_PT.pdf, cap. 5 (p. 40-47): experimento fatorial 2x2 com 3 réplicas",
+ "doe_horas": {
+  "SistemaPedidos": ["Atual", "Novo", "Atual", "Novo", "Novo", "Atual", "Atual", "Novo", "Atual", "Atual", "Novo", "Novo"],
+  "Pacote": ["A", "B", "B", "B", "A", "B", "A", "B", "A", "B", "A", "A"],
+  "Horas": [14.72, 9.62, 13.81, 7.97, 12.52, 13.78, 14.64, 9.41, 13.89, 13.89, 12.57, 14.06]
+ },
+ "doe_horas_esperado": {
+  "_anova": "Fonte, GL, SQ (Aj.), QM (Aj.), Valor F, Valor-P (p. 42)",
+  "sist_pedido": [1, 28.768, 28.7680, 64.46, 0.000],
+  "pacote": [1, 16.147, 16.1472, 36.18, 0.000],
+  "interacao": [1, 8.979, 8.9787, 20.12, 0.002],
+  "erro": [8, 3.571, 0.4463],
+  "total": [11, 57.464],
+  "S": 0.668069, "R2": 93.79, "R2aj": 91.46, "R2pred": 86.02,
+  "_coeficientes": "Termo, Coef, EP de Coef, Valor-T (p. 43); codificação Novo/A = -1, Atual/B = +1",
+  "constante": [12.573, 0.193, 65.20],
+  "coef_sist_pedido": [1.548, 0.193, 8.03],
+  "coef_pacote": [-1.160, 0.193, -6.01],
+  "coef_interacao": [0.865, 0.193, 4.49],
+  "_predicao": "Novo, B (p. 47): Ajuste, EP do Ajuste, IC 95%, IP 95%",
+  "predicao_novo_b": [9, 0.385710, 8.11055, 9.88945, 7.22110, 10.7789]
+ }
+}

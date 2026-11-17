@@ -312,3 +312,92 @@ def tukey_intervalos(comparacoes: Sequence[object], *, titulo: str = "ICs simult
         font=dict(size=11),
     )
     return _aplicar_tema(fig, titulo, "Diferença de médias", None)
+
+
+def efeitos_principais(
+    medias_a: Mapping[str, float],
+    medias_b: Mapping[str, float],
+    media_geral: float,
+    *,
+    nome_a: str = "Fator A",
+    nome_b: str = "Fator B",
+    titulo: str = "Gráfico de efeitos principais",
+) -> go.Figure:
+    """Média da resposta em cada nível de cada fator; a linha tracejada é a média geral."""
+    if not medias_a or not medias_b:
+        raise ErroDeDados("Faltam as médias por nível.")
+    fig = make_subplots(rows=1, cols=2, shared_yaxes=True, subplot_titles=(nome_a, nome_b))
+    for col, medias in ((1, medias_a), (2, medias_b)):
+        fig.add_scatter(
+            x=list(medias),
+            y=list(medias.values()),
+            mode="lines+markers",
+            row=1,
+            col=col,
+            showlegend=False,
+            line=dict(color="#1f77b4"),
+        )
+        fig.add_hline(y=media_geral, line_dash="dash", line_color="gray", row=1, col=col)
+    fig.update_yaxes(title_text="Média da resposta", row=1, col=1)
+    return _aplicar_tema(fig, titulo)
+
+
+def interacao(
+    medias_celulas: Mapping[tuple[str, str], float],
+    niveis_a: Sequence[str],
+    niveis_b: Sequence[str],
+    *,
+    nome_a: str = "Fator A",
+    nome_b: str = "Fator B",
+    titulo: str = "Gráfico de interação",
+) -> go.Figure:
+    """Uma linha por nível de B, ao longo dos níveis de A. Linhas não paralelas sugerem interação."""
+    if not medias_celulas:
+        raise ErroDeDados("Faltam as médias das combinações de níveis.")
+    fig = go.Figure()
+    for i, b in enumerate(niveis_b):
+        ys = [medias_celulas.get((a, b), np.nan) for a in niveis_a]
+        fig.add_scatter(
+            x=list(niveis_a),
+            y=ys,
+            mode="lines+markers",
+            name=f"{nome_b} = {b}",
+            line=dict(color=COR_GRUPOS[i % len(COR_GRUPOS)], dash="solid" if i == 0 else "dash"),
+        )
+    return _aplicar_tema(fig, titulo, nome_a, "Média da resposta")
+
+
+def residuos_quatro(
+    residuos: Sequence[float], ajustados: Sequence[float], *, titulo: str = "Gráficos de resíduos"
+) -> go.Figure:
+    """Quatro em um (como no Minitab): probabilidade normal, versus ajustados, histograma e versus ordem."""
+    r = np.asarray(residuos, dtype=float)
+    f = np.asarray(ajustados, dtype=float)
+    if len(r) < 3 or len(r) != len(f):
+        raise ErroDeDados("São necessários pelo menos 3 resíduos, com os valores ajustados correspondentes.")
+    fig = make_subplots(
+        rows=2,
+        cols=2,
+        subplot_titles=("Probabilidade normal", "Versus ajustados", "Histograma", "Versus ordem"),
+    )
+    (osm, osr), (slope, intercept, _) = stats.probplot(r, dist="norm")
+    fig.add_scatter(x=osm, y=osr, mode="markers", row=1, col=1, showlegend=False, marker=dict(color="#1f77b4"))
+    xs = np.array([osm.min(), osm.max()])
+    fig.add_scatter(
+        x=xs, y=slope * xs + intercept, mode="lines", row=1, col=1, showlegend=False, line=dict(color="red")
+    )
+    fig.add_scatter(x=f, y=r, mode="markers", row=1, col=2, showlegend=False, marker=dict(color="#1f77b4"))
+    fig.add_hline(y=0, line_dash="dash", line_color="gray", row=1, col=2)
+    fig.add_histogram(x=r, row=2, col=1, showlegend=False, marker_color="#1f77b4")
+    fig.add_scatter(
+        x=list(range(1, len(r) + 1)),
+        y=r,
+        mode="lines+markers",
+        row=2,
+        col=2,
+        showlegend=False,
+        marker=dict(color="#1f77b4"),
+    )
+    fig.add_hline(y=0, line_dash="dash", line_color="gray", row=2, col=2)
+    fig.update_layout(height=600)
+    return _aplicar_tema(fig, titulo)
