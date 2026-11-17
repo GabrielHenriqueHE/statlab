@@ -1,7 +1,11 @@
-"""Teste de fumaça da F0: o pacote importa, expõe versão e o entrypoint existe."""
+"""Pacote: versão, subpacotes e o entrypoint que abre o app."""
+
+import subprocess
+
+import pytest
 
 import statlab
-from statlab import core, relatorio, ui
+from statlab import core, graficos, relatorio, ui
 
 
 def test_versao_definida() -> None:
@@ -12,9 +16,23 @@ def test_subpacotes_importam() -> None:
     assert core is not None
     assert ui is not None
     assert relatorio is not None
+    assert graficos is not None
 
 
-def test_main_imprime_status(capsys) -> None:
-    statlab.main()
-    saida = capsys.readouterr().out
-    assert "statlab 0.1.0" in saida
+def test_app_existe_no_pacote() -> None:
+    assert statlab.APP.is_file()
+
+
+def test_main_abre_o_app_com_streamlit(monkeypatch: pytest.MonkeyPatch) -> None:
+    chamadas: list[list[str]] = []
+
+    def falso_call(args: list[str]) -> int:
+        chamadas.append(args)
+        return 0
+
+    monkeypatch.setattr(subprocess, "call", falso_call)
+    with pytest.raises(SystemExit) as saida:
+        statlab.main()
+    assert saida.value.code == 0
+    assert chamadas[0][1:4] == ["-m", "streamlit", "run"]
+    assert str(statlab.APP) in chamadas[0]

@@ -9,6 +9,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+from scipy import stats
+
+from statlab.core.dados import ErroDeDados
 
 METODO_QUARTIS_PADRAO = "linear"  # = Excel QUARTIL.INC
 METODO_QUARTIS_MINITAB = "weibull"
@@ -99,3 +102,60 @@ def texto_outliers(nome: str, v: np.ndarray, out: Outliers) -> str:
     if not out.tem_extremo and not out.tem_suave:
         txt += "sem outliers."
     return txt.rstrip()
+
+
+@dataclass(frozen=True)
+class ResumoEstatistico:
+    """Campos do relatório 'Estatísticas descritivas' do Minitab (mais assimetria, curtose e IC da média)."""
+
+    n: int  # não faltantes (N não faltantes no Minitab)
+    n_faltantes: int  # N faltantes
+    media: float
+    ep_media: float  # erro padrão da média
+    dp: float
+    variancia: float
+    minimo: float
+    q1: float
+    mediana: float
+    q3: float
+    maximo: float
+    assimetria: float  # G1 (ajustada, como o Minitab); NaN se n < 3
+    curtose: float  # G2 (excesso, ajustada); NaN se n < 4
+    ic_media: tuple[float, float]
+    confianca: float
+
+
+def resumo_estatistico(
+    valores: object, *, confianca: float = 0.95, metodo: str = METODO_QUARTIS_PADRAO
+) -> ResumoEstatistico:
+    """Resumo de uma coluna que pode ter faltantes (NaN). Exige pelo menos 2 valores não faltantes."""
+    v_all = np.asarray(valores, dtype=float)
+    mascara = np.isnan(v_all)
+    v = v_all[~mascara]
+    if len(v) < 2:
+        raise ErroDeDados(f"São necessárias pelo menos 2 observações não faltantes (há {len(v)}).")
+    n = len(v)
+    dp = float(v.std(ddof=1))
+    ep = dp / np.sqrt(n)
+    q1, q3 = quartis(v, metodo)
+    tc = float(stats.t.ppf((1 + confianca) / 2, n - 1))
+    media = float(v.mean())
+    assimetria = float(stats.skew(v, bias=False)) if n >= 3 else float("nan")
+    curtose = float(stats.kurtosis(v, fisher=True, bias=False)) if n >= 4 else float("nan")
+    return ResumoEstatistico(
+        n=n,
+        n_faltantes=int(mascara.sum()),
+        media=media,
+        ep_media=float(ep),
+        dp=dp,
+        variancia=float(v.var(ddof=1)),
+        minimo=float(v.min()),
+        q1=q1,
+        mediana=float(np.median(v)),
+        q3=q3,
+        maximo=float(v.max()),
+        assimetria=assimetria,
+        curtose=curtose,
+        ic_media=(float(media - tc * ep), float(media + tc * ep)),
+        confianca=confianca,
+    )

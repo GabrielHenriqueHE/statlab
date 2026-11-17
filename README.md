@@ -7,7 +7,7 @@ Ferramenta de análise estatística didática, em português, para a disciplina 
 3. mostra o **cálculo passo a passo**;
 4. redige a **conclusão** no padrão da apostila, com nível de confiança e intervalo.
 
-> **Status:** F0 (setup) e F1 (núcleo estatístico com testes de aceitação) concluídas. Próximas: F2 UI de dados → F3 páginas dos testes → F4 assistente "Qual teste usar?" → F5 conclusões e relatório → F6 prática com o gerador.
+> **Status:** F0 (setup), F1 (núcleo estatístico com testes de aceitação) e F2 (dados, estatísticas descritivas e gráficos) concluídas. Próximas: F3 telas dos testes → F4 assistente "Qual teste usar?" → F5 conclusões e relatório → F6 prática com o gerador. O comparativo com o Minitab está em [docs/funcionalidades_minitab.md](docs/funcionalidades_minitab.md).
 
 ## Instalação
 
@@ -20,10 +20,10 @@ uv sync
 ## Uso
 
 ```bash
-uv run statlab                              # mensagem de status do pacote (temporário)
+uv run statlab                              # abre o app no navegador
 uv run pytest                               # testes
 uv run ruff check .                         # lint
-uv run streamlit run src/statlab/ui/app.py  # app (a partir da F2)
+uv run streamlit run src/statlab/ui/app.py  # mesmo app, com opções do Streamlit
 ```
 
 ## Estrutura
@@ -31,7 +31,8 @@ uv run streamlit run src/statlab/ui/app.py  # app (a partir da F2)
 ```
 src/statlab/
   core/        cálculos estatísticos puros (sem Streamlit)
-  ui/          páginas Streamlit (só exibição)
+  graficos/    gráficos Plotly (sem Streamlit) e exportação HTML/PNG
+  ui/          app Streamlit e páginas (só exibição; a regra estatística fica no core)
   relatorio/   exportação HTML/Markdown
 tests/         testes de aceitação e unitários
 docs/reference/  material da disciplina (apostila revisada, gerador, gabarito 2026)
