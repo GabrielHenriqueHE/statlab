@@ -14,12 +14,8 @@ from scipy import stats
 from statsmodels.stats.oneway import anova_oneway
 
 from statlab.core.dados import ErroDeDados, amostra, exigir_minimo
-from statlab.core.descritiva import detectar_outliers, sem_extremos, texto_outliers, verificacao_outliers
 from statlab.core.formatacao import num, p_valor
-from statlab.core.nao_parametricos import comparacoes_mann_whitney_bonferroni, kruskal_wallis
-from statlab.core.normalidade import shapiro_wilk, verificacao_normalidade
-from statlab.core.resultados import ALPHA_PADRAO, FALHA, OK, ParComparacao, Resultado, Verificacao
-from statlab.core.variancias import RAZAO_MAXIMA_ANOVA, razao_maior_menor
+from statlab.core.resultados import ALPHA_PADRAO, ParComparacao, Resultado
 
 
 @dataclass(kw_only=True)
@@ -46,15 +42,24 @@ class Anova(Resultado):
     conferencia: str = ""  # linha de conferência (Welch ou ANOVA, conforme o modelo)
 
 
-def anova_um_fator(grupos: Mapping[str, np.ndarray], *, alpha: float = ALPHA_PADRAO) -> Anova:
-    """Tabela da ANOVA (SQE, SQD, QM, F, p) e R². Não faz pré-requisitos — use ``analisar_grupos``."""
+def anova_um_fator(grupos: Mapping[str, object], *, alpha: float = ALPHA_PADRAO) -> Anova:
+    """Tabela da ANOVA de um fator (SQE, SQD, QM, F, p) e R².
+
+    Não verifica pré-requisitos e não aplica post hoc: para as comparações 2 a 2, chame ``tukey_hsd``.
+    Valores faltantes são descartados por grupo, com o n efetivo reportado nos avisos.
+    """
     nomes = list(grupos)
-    dados = [np.asarray(grupos[k], dtype=float) for k in nomes]
-    k = len(dados)
-    if k < 2:
+    if len(nomes) < 2:
         raise ErroDeDados("A ANOVA precisa de pelo menos 2 grupos.")
-    for nome, g in zip(nomes, dados, strict=True):
-        exigir_minimo(g, 2, nome)
+    dados: list[np.ndarray] = []
+    avisos: list[str] = []
+    for nome in nomes:
+        v, faltantes = amostra(grupos[nome], nome)
+        if faltantes:
+            avisos.append(f"{nome}: {faltantes} valor(es) faltante(s) descartado(s); n = {len(v)}.")
+        exigir_minimo(v, 2, nome)
+        dados.append(v)
+    k = len(dados)
     todos = np.concatenate(dados)
     n_total = len(todos)
     gm = float(todos.mean())
@@ -97,16 +102,19 @@ def anova_um_fator(grupos: Mapping[str, np.ndarray], *, alpha: float = ALPHA_PAD
         qm_dentro=qmd,
         r2=r2,
         medias=medias,
+        avisos=avisos,
         passos=passos,
     )
 
 
-def tukey_hsd(grupos: Mapping[str, np.ndarray]) -> list[ParComparacao]:
-    """Tukey HSD para todos os pares. Diferença = média_a − média_b, com IC 95%."""
+def tukey_hsd(grupos: Mapping[str, np.ndarray], *, confianca: float = 0.95) -> list[ParComparacao]:
+    """Tukey HSD para todos os pares. Diferença = média_a − média_b, com IC simultâneo."""
+    if len(grupos) < 3:
+        raise ErroDeDados("O Tukey compara pares entre 3 ou mais grupos; com 2 grupos, use o teste t.")
     nomes = list(grupos)
     dados = [np.asarray(grupos[k], dtype=float) for k in nomes]
     res = stats.tukey_hsd(*dados)
-    ci = res.confidence_interval(0.95)
+    ci = res.confidence_interval(confianca)
     out: list[ParComparacao] = []
     for i in range(len(dados)):
         for j in range(i + 1, len(dados)):
@@ -131,98 +139,3 @@ def welch_anova(grupos: Mapping[str, np.ndarray]) -> tuple[float, float]:
         welch_correction=True,
     )
     return float(res.statistic), float(res.pvalue)
-
-
-def analisar_grupos(
-    grupos: Mapping[str, list[object] | np.ndarray],
-    *,
-    alpha: float = ALPHA_PADRAO,
-) -> Anova:
-    """Compara k ≥ 2 grupos independentes com a regra da disciplina.
-
-    Extremos saem por grupo (com aviso); pré-requisitos e o modelo escolhido vão para os campos do resultado.
-    """
-    if len(grupos) < 2:
-        raise ErroDeDados("Informe pelo menos 2 grupos.")
-    prereq: list[str] = []
-    avisos: list[str] = []
-    verif: list[Verificacao] = []
-    limpos: dict[str, np.ndarray] = {}
-    for nome, bruto in grupos.items():
-        v, faltantes = amostra(bruto, nome)
-        if faltantes:
-            avisos.append(f"{nome}: {faltantes} faltante(s) descartado(s).")
-        exigir_minimo(v, 3, nome)
-        out = detectar_outliers(v)
-        prereq.append(texto_outliers(nome, v, out))
-        verif.append(verificacao_outliers(nome, v, out))
-        if out.tem_extremo:
-            n_antes = len(v)
-            v = sem_extremos(v, out)
-            avisos.append(f"{nome}: outlier extremo excluído; n = {len(v)} (antes: {n_antes}).")
-            exigir_minimo(v, 3, nome)
-        limpos[nome] = v
-
-    normalidades = {nome: shapiro_wilk(v, alpha=alpha, tcl=True, nome=nome) for nome, v in limpos.items()}
-    for nome_g, nr in normalidades.items():
-        prereq.append(nr.passos[0])
-        verif.append(verificacao_normalidade(nr, nome_g, "ANOVA não indicada; Kruskal-Wallis"))
-    normal_ok = all(nr.atende for nr in normalidades.values())
-    razao = razao_maior_menor(list(limpos.values()))
-    var_ok = razao <= RAZAO_MAXIMA_ANOVA
-    texto_razao = f"Variâncias: maior/menor = {num(razao)} → " + (
-        f"dentro do critério (≤ {RAZAO_MAXIMA_ANOVA:g}×)." if var_ok else f"acima de {RAZAO_MAXIMA_ANOVA:g}×."
-    )
-    prereq.append(texto_razao)
-    verif.append(
-        Verificacao(
-            nome="Variâncias semelhantes (razão ≤ 9)",
-            status=OK if var_ok else FALHA,
-            detalhe=texto_razao + ("" if var_ok else " → Kruskal-Wallis"),
-        )
-    )
-
-    if normal_ok and var_ok:
-        res = anova_um_fator(limpos, alpha=alpha)
-        welch_f, welch_p = welch_anova(limpos)
-        res.conferencia = (
-            f"Conferência (Welch, sem supor variâncias iguais): F = {num(welch_f, 2)}; p {p_valor(welch_p)}"
-        )
-        if res.significativo:
-            res.comparacoes = tukey_hsd(limpos)
-            res.metodo_comparacoes = "Tukey HSD"
-        res.passos = ["Modelo: ANOVA (normalidade e razão de variâncias atendidas)", *res.passos]
-    else:
-        motivo = (
-            "normalidade (n < 30 e não normal)" if not normal_ok else f"razão de variâncias > {RAZAO_MAXIMA_ANOVA:g}"
-        )
-        kw = kruskal_wallis(limpos, alpha=alpha)
-        f_conf = stats.f_oneway(*limpos.values())
-        res = Anova(
-            nome="Kruskal-Wallis",
-            alpha=alpha,
-            modelo="Kruskal-Wallis",
-            estatistica=kw.estatistica,
-            rotulo_estatistica="H",
-            gl=kw.gl,
-            p=kw.p,
-            n=kw.n,
-            medias={nm: float(v.mean()) for nm, v in limpos.items()},
-            medianas=kw.medianas,
-            conferencia=(
-                f"Conferência (ANOVA): F = {num(float(f_conf.statistic), 2)}; p {p_valor(float(f_conf.pvalue))}"
-            ),
-            passos=[f"Modelo: Kruskal-Wallis — pré-requisito da ANOVA violado ({motivo})", *kw.passos],
-        )
-        if res.significativo:
-            res.comparacoes = comparacoes_mann_whitney_bonferroni(limpos)
-            res.metodo_comparacoes = "Mann-Whitney com Bonferroni"
-            avisos.append(
-                "Post hoc Mann-Whitney com Bonferroni é fora do conteúdo da apostila; confirme com o professor."
-            )
-
-    res.prerequisitos = prereq + res.prerequisitos
-    res.verificacoes = verif
-    res.avisos = avisos + res.avisos
-    res.n = sum(len(v) for v in limpos.values())
-    return res

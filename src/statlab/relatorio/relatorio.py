@@ -1,4 +1,4 @@
-"""Relatório da sessão: cada item reúne análise, pré-requisitos, resultado, conclusão, avisos, cálculo e gráficos.
+"""Saída da sessão: cada item reúne o comando, os diagnósticos, o resultado, as notas, o cálculo e os gráficos.
 
 Exporta Markdown (texto, sem gráficos) e HTML autocontido (gráficos interativos, plotly.js embutido uma vez,
 sem CDN). Não importa Streamlit.
@@ -13,7 +13,6 @@ from datetime import datetime
 
 from plotly import graph_objects as go
 
-from statlab.core.conclusoes import concluir
 from statlab.core.formatacao import num, p_valor
 from statlab.core.resultados import ATENCAO, FALHA, OK, Resultado
 
@@ -24,7 +23,6 @@ ICONES = {OK: "✅", ATENCAO: "⚠️", FALHA: "❌"}
 class ItemRelatorio:
     titulo: str
     teste: str
-    conclusao: str
     resultado: list[str]
     verificacoes: list[tuple[str, str, str]]  # (ícone, nome, detalhe)
     passos: list[str]
@@ -57,13 +55,11 @@ def item_de(
     res: Resultado,
     *,
     titulo: str,
-    variavel: str = "a variável",
     figuras: Sequence[go.Figure] = (),
 ) -> ItemRelatorio:
     return ItemRelatorio(
         titulo=titulo,
         teste=res.nome,
-        conclusao=concluir(res, variavel=variavel),
         resultado=resumo_resultado(res),
         verificacoes=[(ICONES.get(v.status, "•"), v.nome, v.detalhe) for v in res.verificacoes],
         passos=list(res.passos),
@@ -75,9 +71,9 @@ def item_de(
 def para_markdown(itens: Sequence[ItemRelatorio], titulo: str = "Relatório — statlab") -> str:
     partes = [f"# {titulo}", "", f"Gerado em {datetime.now():%d/%m/%Y %H:%M}. {len(itens)} análise(s).", ""]
     for i, item in enumerate(itens, start=1):
-        partes += [f"## {i}. {item.titulo}", "", f"**Teste:** {item.teste}", "", f"**Conclusão:** {item.conclusao}", ""]
+        partes += [f"## {i}. {item.titulo}", "", f"**Comando:** {item.teste}", ""]
         if item.verificacoes:
-            partes += ["### Pré-requisitos", ""] + [f"- {ic} **{nome}** — {det}" for ic, nome, det in item.verificacoes]
+            partes += ["### Diagnósticos", ""] + [f"- {ic} **{nome}** — {det}" for ic, nome, det in item.verificacoes]
             partes.append("")
         partes += ["### Resultado", ""] + [f"- {linha}" for linha in item.resultado] + [""]
         if item.avisos:
@@ -94,12 +90,11 @@ body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; max-
        padding: 0 1rem; color: #1f2328; background: #ffffff; line-height: 1.5; }
 h1 { border-bottom: 2px solid #1f77b4; padding-bottom: .3rem; }
 h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .2rem; }
-.conclusao { background: #eef6ff; border-left: 4px solid #1f77b4; padding: .75rem 1rem; }
 .aviso { background: #fff8e1; border-left: 4px solid #f0ad4e; padding: .5rem 1rem; margin: .3rem 0; }
 pre { background: #f6f8fa; padding: .75rem; overflow-x: auto; white-space: pre-wrap; }
 @media (prefers-color-scheme: dark) {
   body { color: #e6edf3; background: #0d1117; }
-  .conclusao { background: #0f2a44; } .aviso { background: #3a2f12; } pre { background: #161b22; }
+  .aviso { background: #3a2f12; } pre { background: #161b22; }
 }
 """
 
@@ -114,11 +109,10 @@ def para_html(itens: Sequence[ItemRelatorio], titulo: str = "Relatório — stat
     for i, item in enumerate(itens, start=1):
         corpo += [
             f"<h2>{i}. {e(item.titulo)}</h2>",
-            f"<p><strong>Teste:</strong> {e(item.teste)}</p>",
-            f'<p class="conclusao"><strong>Conclusão:</strong> {e(item.conclusao)}</p>',
+            f"<p><strong>Comando:</strong> {e(item.teste)}</p>",
         ]
         if item.verificacoes:
-            corpo.append("<h3>Pré-requisitos</h3><ul>")
+            corpo.append("<h3>Diagnósticos</h3><ul>")
             corpo += [f"<li>{ic} <strong>{e(nome)}</strong> — {e(det)}</li>" for ic, nome, det in item.verificacoes]
             corpo.append("</ul>")
         corpo.append("<h3>Resultado</h3><ul>" + "".join(f"<li>{e(linha)}</li>" for linha in item.resultado) + "</ul>")

@@ -13,11 +13,9 @@ from scipy import stats
 from statsmodels.stats.descriptivestats import sign_test
 
 from statlab.core import uma_amostra, variancias
-from statlab.core.conclusoes import concluir
 from statlab.core.dados import ErroDeDados
-from statlab.core.resultados import FALHA, OK
-from statlab.core.uma_amostra import analisar_sinal, analisar_uma_variancia, qui_quadrado_variancia
-from statlab.core.variancias import igualdade_variancias
+from statlab.core.normalidade import shapiro_wilk
+from statlab.core.uma_amostra import qui_quadrado_variancia
 from tests.helpers import aprox, pdf
 
 # --------------------------------------------------------------------------- teste de sinal
@@ -47,21 +45,19 @@ def test_sinal_tudo_igual_a_m0_vira_erro_de_dominio():
         uma_amostra.teste_sinal(np.array([5.0, 5.0, 5.0]), 5.0)
 
 
-def test_analisar_sinal_avisa_fora_da_apostila_e_conclusao_cita_mediana():
-    v = [20, 22, 25, 26, 27, 28, 29, 30, 31, 33, 34, 35]
-    res = analisar_sinal(v, 21, nome="tempo")
+def test_sinal_reporta_a_mediana():
+    v = np.array([20, 22, 25, 26, 27, 28, 29, 30, 31, 33, 34, 35], float)
+    res = uma_amostra.teste_sinal(v, 21)
     assert res.significativo  # 11 de 12 acima
-    assert any("fora da apostila" in a for a in res.avisos)
-    texto = concluir(res, variavel="tempo")
-    assert "mediana de tempo" in texto and "significativamente maior" in texto
-    assert "média" not in texto
+    assert res.mediana == pytest.approx(float(np.median(v)))
 
 
-def test_analisar_sinal_exclui_extremo_pela_regra_da_disciplina():
-    v = [10, 11, 12, 12, 13, 13, 14, 14, 15, 100]
-    res = analisar_sinal(v, 11.5)
-    assert any("Outlier extremo excluído" in a for a in res.avisos)
-    assert res.n == 9  # 9 valores restantes, nenhum igual a 11,5
+def test_sinal_nao_exclui_extremos():
+    """O valor 100 é outlier extremo e permanece: quem exclui é quem chama."""
+    v = np.array([10, 11, 12, 12, 13, 13, 14, 14, 15, 100], float)
+    res = uma_amostra.teste_sinal(v, 11.5)
+    assert res.n == 10
+    assert res.avisos == []
 
 
 # --------------------------------------------------------------------------- uma variância
@@ -95,24 +91,19 @@ def test_uma_variancia_bilateral_e_o_dobro_da_menor_cauda():
     assert menor.p == pytest.approx(stats.chi2.cdf(29.07, 19))
 
 
-def test_uma_variancia_nao_usa_atalho_do_tcl():
-    # 40 valores exponenciais: n ≥ 30, mas não normais → FALHA (o TCL não vale para variâncias)
+def test_uma_variancia_sobre_dados_nao_normais_continua_rodando():
+    """40 valores exponenciais: o χ² de variância não é robusto, mas roda — a leitura é do usuário."""
     v = stats.expon.ppf((np.arange(1, 41) - 0.5) / 40)
-    res = analisar_uma_variancia(v, 1.0, nome="x")
-    norm = next(c for c in res.verificacoes if c.nome.startswith("Normalidade"))
-    assert norm.status == FALHA
-    assert not res.confiavel
-    assert any("Bonett" in a for a in res.avisos)
-    assert "não é confiável" in concluir(res, variavel="x")
+    res = qui_quadrado_variancia(v, 1.0)
+    assert res.p is not None
+    assert shapiro_wilk(v, tcl=False).normal is False
 
 
-def test_uma_variancia_normal_tem_cartao_ok_e_conclusao_com_ic():
+def test_uma_variancia_normal_tem_ic():
     v = _com_variancia(25, 4.0)
-    res = analisar_uma_variancia(v, 1.0, nome="peso")
-    assert next(c for c in res.verificacoes if c.nome.startswith("Normalidade")).status == OK
+    res = qui_quadrado_variancia(v, 1.0)
     assert res.significativo
-    texto = concluir(res, variavel="peso")
-    assert "desvio padrão de peso" in texto and "significativamente maior" in texto and "IC 95%" in texto
+    assert res.ic is not None and res.ic[0] < res.desvio < res.ic[1]
 
 
 def test_uma_variancia_sigma0_invalido():
@@ -125,20 +116,17 @@ def test_uma_variancia_sigma0_invalido():
 
 def test_dois_grupos_normais_usam_o_teste_f_do_pdf():
     d = pdf()["ex5_apf"]
-    res = igualdade_variancias({"G1": d["g1"], "G2": d["g2"]})
-    assert res.metodo == "F"
+    res = variancias.teste_f(np.array(d["g1"]), np.array(d["g2"]))
     aprox(res.estatistica, 1.277, 3)  # PDF: F = 1,277; p = 0,774
     aprox(res.p, 0.774, 3)
-    assert res.p == pytest.approx(variancias.teste_f(np.array(d["g1"]), np.array(d["g2"])).p)
-    assert res.p_bartlett == pytest.approx(stats.bartlett(d["g1"], d["g2"]).pvalue)
+    b = variancias.bartlett({"G1": d["g1"], "G2": d["g2"]})
+    assert b.p == pytest.approx(stats.bartlett(d["g1"], d["g2"]).pvalue)
 
 
-def test_tres_grupos_normais_usam_bartlett_igual_ao_scipy():
+def test_tres_grupos_bartlett_igual_ao_scipy():
     d = pdf()["ex6_forca"]
     grupos = {"G1": d["g1"], "G2": d["g2"], "G3": d["g3"]}
-    res = igualdade_variancias(grupos)
-    if res.metodo != "Bartlett":
-        pytest.skip("algum grupo do exemplo não é normal; o caso fica coberto pelo teste sintético abaixo")
+    res = variancias.bartlett(grupos)
     b = stats.bartlett(*grupos.values())
     assert res.estatistica == pytest.approx(b.statistic)
     assert res.p == pytest.approx(b.pvalue)
@@ -146,7 +134,7 @@ def test_tres_grupos_normais_usam_bartlett_igual_ao_scipy():
 
 def test_bartlett_confere_com_a_formula():
     grupos = {"A": _com_variancia(10, 1.0), "B": _com_variancia(12, 2.5, 20), "C": _com_variancia(8, 6.0, 30)}
-    res = igualdade_variancias(grupos)
+    res = variancias.bartlett(grupos)
     assert res.metodo == "Bartlett"
     ns = np.array([len(g) for g in grupos.values()])
     s2 = np.array([np.var(g, ddof=1) for g in grupos.values()])
@@ -160,10 +148,10 @@ def test_bartlett_confere_com_a_formula():
     assert any("fora da apostila" in a or "não estão na apostila" in a for a in res.avisos)
 
 
-def test_grupo_nao_normal_usa_levene_mediana():
+def test_levene_mediana_igual_ao_scipy():
     nao_normal = stats.expon.ppf((np.arange(1, 21) - 0.5) / 20) * 3
     grupos = {"A": _com_variancia(20, 1.0), "B": nao_normal, "C": _com_variancia(20, 2.0)}
-    res = igualdade_variancias(grupos)
+    res = variancias.levene(grupos)
     assert res.metodo == "Levene"
     lev = stats.levene(*grupos.values(), center="median")
     assert res.p == pytest.approx(lev.pvalue)
@@ -171,19 +159,18 @@ def test_grupo_nao_normal_usa_levene_mediana():
     assert res.gl == (2.0, 57.0)
 
 
-def test_conclusao_igualdade_nunca_afirma_iguais():
+def test_igualdade_sem_evidencia_nao_vira_afirmacao():
+    """Sem conclusão redigida: o resultado diz só o p, e a leitura fica com o usuário."""
     grupos = {"A": _com_variancia(15, 1.0), "B": _com_variancia(15, 1.2, 5)}
-    res = igualdade_variancias(grupos)
+    res = variancias.bartlett(grupos)
     assert not res.significativo
-    texto = concluir(res, variavel="tempo")
-    assert texto.startswith("Não há evidência de diferença")
-    assert "são iguais" not in texto
+    assert res.iguais is True  # a propriedade é a leitura p > α, não uma afirmação de igualdade
 
 
 def test_igualdade_variancias_dados_ruins():
     with pytest.raises(ErroDeDados):
-        igualdade_variancias({"A": [1, 2, 3]})
+        variancias.bartlett({"A": [1, 2, 3]})
     with pytest.raises(ErroDeDados):
-        igualdade_variancias({"A": [1, 2, 3, 4], "B": [5, 5, 5, 5]})
+        variancias.levene({"A": [1, 2, 3, 4], "B": [5, 5, 5, 5]})
     with pytest.raises(ErroDeDados):
-        igualdade_variancias({"A": [1, 2, 3, 4], "B": [1, "x", 3]})
+        variancias.bartlett({"A": [1, 2, 3, 4], "B": [1, "x", 3]})

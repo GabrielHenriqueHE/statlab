@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from statlab.core.anova import analisar_grupos, anova_um_fator, tukey_hsd, welch_anova
+from statlab.core.anova import anova_um_fator, tukey_hsd, welch_anova
 from statlab.core.dados import ErroDeDados
 from statlab.core.nao_parametricos import (
     comparacoes_mann_whitney_bonferroni,
@@ -11,7 +11,7 @@ from statlab.core.nao_parametricos import (
     mann_whitney,
     wilcoxon_pareado,
 )
-from statlab.core.proporcoes import analisar_proporcoes
+from statlab.core.proporcoes import fisher_duas_proporcoes, z_duas_proporcoes
 from statlab.core.resultados import ParComparacao
 from statlab.core.variancias import razao_maior_menor
 from tests.helpers import aprox, gabarito, p_menor_que, pdf
@@ -44,15 +44,14 @@ def test_pdf_ex6_anova_tabela():
     aprox(res.r2, 0.175, 3)
 
 
-def test_pdf_ex6_pipeline_escolhe_anova_com_tukey_e_welch_conferencia():
-    res = analisar_grupos(_forca_grupos())
-    assert res.modelo == "ANOVA (1 fator)"
-    aprox(res.estatistica, 8.70, 2)
-    assert res.metodo_comparacoes == "Tukey HSD"
-    assert "13,80" in res.conferencia  # ANOVA de Welch: F = 13,80
+def test_pdf_ex6_welch_anova_e_comando_proprio():
+    """A ANOVA de Welch é uma opção, não uma conferência que o app roda sozinho: F = 13,80."""
     welch_f, welch_p = welch_anova(_forca_grupos())
     aprox(welch_f, 13.80, 2)
     p_menor_que(welch_p)
+    res = anova_um_fator(_forca_grupos())
+    aprox(res.estatistica, 8.70, 2)
+    assert res.comparacoes == []  # o Tukey só sai se for pedido
 
 
 def test_pdf_ex6_tukey_pares():
@@ -82,15 +81,13 @@ def _resistencia():
     return {"G1": np.array(d["g1"], float), "G2": np.array(d["g2"], float), "G3": np.array(d["g3"], float)}
 
 
-def test_pdf_ex7_kruskal_wallis_resistencia_escolhido_pelos_pre_requisitos():
-    res = analisar_grupos(_resistencia())
-    assert res.modelo == "Kruskal-Wallis"
+def test_pdf_ex7_kruskal_wallis_resistencia():
+    res = kruskal_wallis(_resistencia())
     aprox(res.estatistica, 29.37, 2)
     assert res.gl == (2.0,)
     p_menor_que(res.p)
     assert res.nivel_confianca == 99
     assert res.medianas["G1"] == 283 and res.medianas["G3"] == 459
-    assert res.metodo_comparacoes == "Mann-Whitney com Bonferroni"
 
 
 def test_pdf_ex7_comparacoes_bonferroni():
@@ -112,8 +109,7 @@ def test_pdf_8_5_exercicio_proposto_gabarito():
     aprox(float(g["G2"].mean()), 35.79, 2)
     aprox(float(g["G3"].mean()), 64.41, 2)
     assert razao_maior_menor(list(g.values())) == pytest.approx(515.4 / 62.2, rel=2e-3)  # 8,28
-    res = analisar_grupos(g)
-    assert res.modelo == "Kruskal-Wallis"  # G2 não normal (p = 0,020) com n = 29
+    res = kruskal_wallis(g)
     aprox(res.estatistica, 41.66, 2)
     p_menor_que(res.p)
     aa = anova_um_fator(g)
@@ -126,8 +122,7 @@ def test_pdf_8_5_exercicio_proposto_gabarito():
 
 def test_gabarito_ex4_anova_nao_significativa():
     g = gabarito()["ex4"]
-    res = analisar_grupos({"manhã": g["manha"], "tarde": g["tarde"], "noite": g["noite"]})
-    assert res.modelo == "ANOVA (1 fator)"
+    res = anova_um_fator({"manhã": g["manha"], "tarde": g["tarde"], "noite": g["noite"]})
     aprox(res.estatistica, 1.732, 3)
     aprox(res.p, 0.183, 3)
     aprox(res.sq_entre, 558.40, 2)
@@ -139,27 +134,33 @@ def test_gabarito_ex4_anova_nao_significativa():
 
 def test_gabarito_ex5_planilha_ja_sem_extremos_kruskal():
     g = gabarito()["ex5_planilha"]
-    res = analisar_grupos({"manhã": g["manha"], "tarde": g["tarde"], "noite": g["noite"]})
-    assert res.modelo == "Kruskal-Wallis"
+    grupos = {"manhã": g["manha"], "tarde": g["tarde"], "noite": g["noite"]}
+    res = kruskal_wallis(grupos)
     aprox(res.estatistica, 38.537, 3)
     p_menor_que(res.p)
-    assert _cmp(res.comparacoes, "manhã", "tarde").p < 0.001
-    assert _cmp(res.comparacoes, "manhã", "noite").p < 0.001
-    aprox(_cmp(res.comparacoes, "tarde", "noite").p, 0.002, 3)
+    assert res.comparacoes == []  # as comparações 2 a 2 são um pedido à parte
+    comps = comparacoes_mann_whitney_bonferroni(grupos)
+    assert _cmp(comps, "manhã", "tarde").p < 0.001
+    assert _cmp(comps, "manhã", "noite").p < 0.001
+    aprox(_cmp(comps, "tarde", "noite").p, 0.002, 3)
 
 
-def test_gabarito_ex5_enunciado_bruto_exclui_37_e_38_e_chega_ao_mesmo_h():
-    """Com o enunciado completo (19 na Turma tarde), os extremos 37 e 38 são excluídos e H é o mesmo."""
+def test_gabarito_ex5_enunciado_bruto_nao_perde_os_extremos():
+    """Com o enunciado completo (19 na Turma tarde), os extremos 37 e 38 PERMANECEM: o app não exclui."""
     g = gabarito()
-    res = analisar_grupos(
-        {
-            "manhã": g["ex5_planilha"]["manha"],
-            "tarde": g["enunciado_bruto"]["ex5_tarde"],
-            "noite": g["ex5_planilha"]["noite"],
-        }
-    )
-    aprox(res.estatistica, 38.537, 3)
-    assert any("outlier extremo excluído" in a and "tarde" in a for a in res.avisos)
+    tarde_bruta = g["enunciado_bruto"]["ex5_tarde"]
+    assert 37 in tarde_bruta and 38 in tarde_bruta
+    grupos = {
+        "manhã": g["ex5_planilha"]["manha"],
+        "tarde": tarde_bruta,
+        "noite": g["ex5_planilha"]["noite"],
+    }
+    res = kruskal_wallis(grupos)
+    assert res.n == sum(len(v) for v in grupos.values())
+    assert res.avisos == []
+    # excluindo os extremos na mão, chega-se ao H da planilha do gabarito
+    sem = dict(grupos, tarde=[v for v in tarde_bruta if v not in (37, 38)])
+    aprox(kruskal_wallis(sem).estatistica, 38.537, 3)
 
 
 # --------------------------------------------------------------------------- proporções
@@ -167,58 +168,58 @@ def test_gabarito_ex5_enunciado_bruto_exclui_37_e_38_e_chega_ao_mesmo_h():
 
 def test_gabarito_ex6_z_bilateral_e_conferencia_fisher():
     g = gabarito()["ex6"]
-    res = analisar_proporcoes(g["g1"][0], g["g1"][1], g["g2"][0], g["g2"][1], nome_1="com", nome_2="sem")
+    res = z_duas_proporcoes(g["g1"][0], g["g1"][1], g["g2"][0], g["g2"][1], nome_1="com", nome_2="sem")
     assert res.nome == "Teste z de duas proporções"
     aprox(res.p1, 0.5000, 4)
     aprox(res.p2, 0.6429, 4)
     aprox(res.z, -1.989, 3)
     aprox(res.p, 0.047, 3)
-    aprox(res.p_fisher, 0.052, 3)
+    fisher = fisher_duas_proporcoes(g["g1"][0], g["g1"][1], g["g2"][0], g["g2"][1])
+    aprox(fisher.p, 0.052, 3)
 
 
 def test_gabarito_ex8_z_muito_significativo():
     g = gabarito()["ex8"]
-    res = analisar_proporcoes(g["a"][0], g["a"][1], g["b"][0], g["b"][1])
+    res = z_duas_proporcoes(g["a"][0], g["a"][1], g["b"][0], g["b"][1])
     aprox(res.z, -3.449, 3)
     p_menor_que(res.p)
-    p_menor_que(res.p_fisher)
+    p_menor_que(fisher_duas_proporcoes(g["a"][0], g["a"][1], g["b"][0], g["b"][1]).p)
     assert res.nivel_confianca == 99
 
 
-def test_proporcoes_pre_requisito_falho_usa_fisher():
-    res = analisar_proporcoes(2, 10, 5, 12)  # n·p·q = 1,6 e 2,9 < 5
-    assert res.nome == "Teste exato de Fisher"
-    assert res.z is None
-    assert res.p is not None and 0 < res.p <= 1
+def test_proporcoes_criterio_falho_vira_diagnostico_nao_troca_de_teste():
+    """n·p·q = 1,6 e 2,9 < 5: o z ainda roda se for pedido, com o diagnóstico em ⚠️."""
+    z = z_duas_proporcoes(2, 10, 5, 12)
+    assert z.nome == "Teste z de duas proporções"
+    assert [v.status for v in z.verificacoes] == ["atencao", "atencao"]
+    f = fisher_duas_proporcoes(2, 10, 5, 12)
+    assert f.nome == "Teste exato de Fisher"
+    assert f.p is not None and 0 < f.p <= 1
 
 
 def test_proporcoes_ocorrencias_fora_do_total_erro():
     with pytest.raises(ErroDeDados, match="entre 0 e o total"):
-        analisar_proporcoes(12, 10, 3, 9)
+        z_duas_proporcoes(12, 10, 3, 9)
 
 
 # --------------------------------------------------------------------------- Mann-Whitney / Wilcoxon (gabarito ex10)
 
 
-def test_gabarito_ex10_wilcoxon_com_extremo_excluido_e_unilateral_aumentou():
+def test_gabarito_ex10_enunciado_bruto_mantem_o_par_extremo():
+    """O par (58; 100), d = −42, é outlier extremo — e continua na análise, porque ninguém o excluiu."""
     g = gabarito()
     antes = np.array(g["enunciado_bruto"]["ex10_antes"], float)
     depois = np.array(g["enunciado_bruto"]["ex10_depois"], float)
-    from statlab.core.testes_t import analisar_antes_depois
-
-    res = analisar_antes_depois(antes, depois, alternativa="menor")
-    assert res.nome == "Wilcoxon (pareado)"
-    assert res.n == 16  # o par (58; 100), d = −42, é o outlier extremo
-    assert res.estatistica == 0.0  # W = 0
-    p_menor_que(res.p)
-    assert any("Sem o(s) outlier(s) suave(s)" in a for a in res.avisos)
+    res = wilcoxon_pareado(antes, depois, alternativa="menor")
+    assert res.n == len(antes) == 17
+    assert res.avisos == []
 
 
-def test_gabarito_ex10_planilha_mesmo_resultado():
+def test_gabarito_ex10_planilha_sem_o_extremo_da_w_zero():
+    """A planilha do gabarito já vem sem o par extremo: W = 0 e p < 0,001 (unilateral)."""
     g = gabarito()["ex10_planilha"]
-    from statlab.core.testes_t import analisar_antes_depois
-
-    res = analisar_antes_depois(g["antes"], g["depois"], alternativa="menor")
+    res = wilcoxon_pareado(np.array(g["antes"], float), np.array(g["depois"], float), alternativa="menor")
+    assert res.n == 16
     assert res.estatistica == 0.0
     p_menor_que(res.p)
 
@@ -240,27 +241,30 @@ def test_kruskal_gl_e_medianas():
     assert set(res.medianas) == {"a", "b", "c"}
 
 
-def test_analisar_grupos_exige_dois_grupos():
+def test_anova_exige_dois_grupos():
     with pytest.raises(ErroDeDados):
-        analisar_grupos({"unico": [1, 2, 3, 4]})
+        anova_um_fator({"unico": [1, 2, 3, 4]})
 
 
 # --------------------------------------------------------------------------- bordas (plano: F1)
 
 
 def test_grupo_vazio_erro_de_dados():
-    with pytest.raises(ErroDeDados, match="pelo menos 3"):
-        analisar_grupos({"a": [1.0, 2, 3, 4], "vazio": [None, ""]})
+    with pytest.raises(ErroDeDados, match="pelo menos 2 observações"):
+        anova_um_fator({"a": [1.0, 2, 3, 4], "vazio": [None, ""]})
 
 
 def test_grupo_com_valor_textual_invalido_erro_com_nome_do_grupo():
     with pytest.raises(ErroDeDados, match="Grupo B"):
-        analisar_grupos({"Grupo A": [1.0, 2, 3], "Grupo B": [1.0, "x", 3]})
+        anova_um_fator({"Grupo A": [1.0, 2, 3], "Grupo B": [1.0, "x", 3]})
 
 
-def test_grupo_constante_erro_de_dados():
-    with pytest.raises(ErroDeDados, match="todos os valores são iguais"):
-        analisar_grupos({"a": [5.0, 5, 5, 5], "b": [1.0, 2, 3, 4]})
+def test_grupo_constante_e_valido_se_houver_variacao_dentro():
+    """Um grupo sem variação não impede a ANOVA; o que impede é não haver variação em nenhum."""
+    res = anova_um_fator({"a": [5.0, 5, 5, 5], "b": [1.0, 2, 3, 4]})
+    assert res.p is not None
+    with pytest.raises(ErroDeDados, match="Não há variação dentro dos grupos"):
+        anova_um_fator({"a": [5.0, 5, 5], "b": [1.0, 1, 1]})
 
 
 def test_shapiro_com_menos_de_3_observacoes_erro_de_dados():
@@ -271,6 +275,6 @@ def test_shapiro_com_menos_de_3_observacoes_erro_de_dados():
 
 
 def test_anova_faltantes_viram_aviso_e_nao_quebram():
-    res = analisar_grupos({"a": [1.0, 2, None, 4, 3], "b": [5.0, 6, 7, None, 8, 6]})
+    res = anova_um_fator({"a": [1.0, 2, None, 4, 3], "b": [5.0, 6, 7, None, 8, 6]})
     assert any("faltante" in a for a in res.avisos)
     assert res.n == 9

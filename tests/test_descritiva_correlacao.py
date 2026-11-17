@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from scipy import stats
 
-from statlab.core.correlacao import analisar_correlacao, forca, pearson, r_critico, spearman
+from statlab.core.correlacao import correlacao, forca, pearson, r_critico, spearman
 from statlab.core.dados import ErroDeDados
 from statlab.core.descritiva import METODO_QUARTIS_MINITAB, descrever, detectar_outliers, quartis
 from tests.helpers import aprox, gabarito, p_menor_que, pdf
@@ -174,8 +174,7 @@ def test_forca_da_correlacao(r, classe):
 def test_pdf_ex1_publicidade_faturamento():
     """PDF 2.5: r = 0,975; p = 0,0047; r² = 0,951; normalidade x p = 0,967 e y p = 0,606."""
     d = pdf()["ex1_publicidade"]
-    c = analisar_correlacao(d["x"], d["y"], nome_x="Investimento", nome_y="Faturamento")
-    assert c.metodo == "Pearson"
+    c = correlacao(d["x"], d["y"], nome_x="Investimento", nome_y="Faturamento")
     aprox(c.r, 0.975, 3)
     aprox(c.p, 0.0047, 4)
     aprox(c.r2, 0.951, 3)
@@ -186,44 +185,54 @@ def test_pdf_ex1_publicidade_faturamento():
     aprox(c.r_critico_1, 0.959, 3)
 
 
-def test_pdf_ex1_normalidade_p_valores():
+def test_pdf_ex1_normalidade_vai_como_diagnostico():
+    """A normalidade é reportada nas verificações — informação, não gatilho de troca de método."""
     d = pdf()["ex1_publicidade"]
-    c = analisar_correlacao(d["x"], d["y"])
-    assert any("0,967" in t for t in c.prerequisitos), c.prerequisitos
-    assert any("0,606" in t for t in c.prerequisitos), c.prerequisitos
+    c = correlacao(d["x"], d["y"])
+    detalhes = [v.detalhe for v in c.verificacoes]
+    assert any("0,967" in t for t in detalhes), detalhes
+    assert any("0,606" in t for t in detalhes), detalhes
 
 
 def test_pdf_ex2_treinamento_erros_negativa():
     """PDF 2.6: r = −0,988; r² = 0,977; p < 0,001; normalidade x p = 0,432, y p = 0,853."""
     d = pdf()["ex2_treinamento"]
-    c = analisar_correlacao(d["x"], d["y"])
+    c = correlacao(d["x"], d["y"])
     aprox(c.r, -0.988, 3)
     aprox(c.r2, 0.977, 3)
     p_menor_que(c.p)
     assert c.forca == "muito forte"
     assert c.nivel_confianca == 99
-    assert any("0,432" in t for t in c.prerequisitos)
-    assert any("0,853" in t for t in c.prerequisitos)
+    detalhes = [v.detalhe for v in c.verificacoes]
+    assert any("0,432" in t for t in detalhes)
+    assert any("0,853" in t for t in detalhes)
 
 
 def test_pdf_ex3_atendimento_quando_o_r_engana():
     """PDF 2.7: n = 40 pares; r = −0,029 (p = 0,857); Spearman rs = 0,005 (p = 0,977); sem outlier r = −0,210."""
     d = pdf()["ex3_atendimento"]
-    c = analisar_correlacao(d["x"], d["y"], nome_x="Tempo", nome_y="Produtividade")
+    c = correlacao(d["x"], d["y"], metodo="Spearman", nome_x="Tempo", nome_y="Produtividade")
     assert c.n == 40
-    assert c.n_extremos_excluidos == 0
-    assert c.metodo == "Spearman"  # tempo não é normal (p = 0,015)
+    assert c.metodo == "Spearman"
     aprox(c.r, -0.029, 3)
     aprox(c.p_pearson, 0.857, 3)
     aprox(c.r_s, 0.005, 3)
     aprox(c.p_spearman, 0.977, 3)
     assert not c.significativo
-    assert c.forca is None  # força só se significativo
-    # sem o outlier suave (n = 39): a análise usa o mesmo método da principal (Spearman) → PDF tabela 4
-    assert c.n_sem_suave == 39
-    aprox(c.r_sem_suave, -0.073, 3)
-    aprox(c.p_sem_suave, 0.657, 3)
-    assert c.conclusao_muda is False
+    # a força é reportada, com a nota de que não deve ser interpretada
+    assert c.forca == "bem fraca"
+    assert any("não é significativa" in a for a in c.avisos)
+
+
+def test_pdf_ex3_spearman_sem_outlier_continua_nao_significativo():
+    """PDF tabela 4: excluindo o outlier na mão (n = 39), Spearman rs = −0,073 e p = 0,657."""
+    d = pdf()["ex3_atendimento"]
+    pares_ok = [(a, b) for a, b in zip(d["x"], d["y"], strict=True) if b is not None and b != 1100.0]
+    c = correlacao([a for a, _ in pares_ok], [b for _, b in pares_ok], metodo="Spearman")
+    assert c.n == 39
+    aprox(c.estatistica, -0.073, 3)
+    aprox(c.p, 0.657, 3)
+    assert not c.significativo
 
 
 def test_pdf_ex3_pearson_sem_outlier_r_menos_0210():
@@ -254,26 +263,31 @@ def test_pdf_ex3_normalidade_com_e_sem_outlier():
 # --------------------------------------------------------------------------- gabarito 2026: correlação
 
 
-def test_gabarito_ex1_pearson_nao_significativo_e_com_outlier_muda():
+def test_gabarito_ex1_pearson_nao_significativo_com_todos_os_pares():
+    """O app usa os 9 pares que recebeu: nada é excluído por conta própria."""
     g = gabarito()["ex1"]
-    c = analisar_correlacao(g["x"], g["y"])
-    assert c.metodo == "Pearson"
+    c = correlacao(g["x"], g["y"])
+    assert c.n == len(g["x"]) == 9
     aprox(c.r, 0.095, 3)
     aprox(c.p, 0.808, 3)
     assert not c.significativo
     aprox(c.r_s, 0.438, 3)
     aprox(c.p_spearman, 0.239, 3)
-    # sem o outlier suave (y = 16): n = 8, r = 0,972, p < 0,001 → conclusão muda
-    assert c.n_sem_suave == 8
-    aprox(c.r_sem_suave, 0.972, 3)
-    p_menor_que(c.p_sem_suave)
-    assert c.conclusao_muda is True
+
+
+def test_gabarito_ex1_excluir_o_suave_e_escolha_de_quem_chama():
+    """Tirando o outlier suave (y = 16) na mão, r = 0,972 e p < 0,001 — a conclusão muda."""
+    g = gabarito()["ex1"]
+    pares_sem = [(x, y) for x, y in zip(g["x"], g["y"], strict=True) if y != 16]
+    assert len(pares_sem) == 8
+    c = correlacao([x for x, _ in pares_sem], [y for _, y in pares_sem])
+    aprox(c.r, 0.972, 3)
+    p_menor_que(c.p)
 
 
 def test_gabarito_ex9_correlacao_forte():
     g = gabarito()["ex9"]
-    c = analisar_correlacao(g["x"], g["y"])
-    assert c.metodo == "Pearson"
+    c = correlacao(g["x"], g["y"])
     aprox(c.r, 0.960, 3)
     aprox(c.r_s, 0.942, 3)
     aprox(c.r2 * 100, 92.1, 1)
@@ -286,15 +300,15 @@ def test_gabarito_ex9_correlacao_forte():
 
 def test_correlacao_com_coluna_constante_erro_de_dados():
     with pytest.raises(ErroDeDados, match="todos os valores são iguais"):
-        analisar_correlacao([1, 1, 1, 1], [1, 2, 3, 4])
+        correlacao([1, 1, 1, 1], [1, 2, 3, 4])
 
 
 def test_correlacao_com_menos_de_3_pares_erro_de_dados():
     with pytest.raises(ErroDeDados, match="pelo menos 3"):
-        analisar_correlacao([1, 2], [3, 4])
+        correlacao([1, 2], [3, 4])
 
 
 def test_correlacao_faltantes_viram_aviso():
-    c = analisar_correlacao([1, 2, None, 4, 5, 6, 7], [2, 4, 6, 8, 10, 12, None])
+    c = correlacao([1, 2, None, 4, 5, 6, 7], [2, 4, 6, 8, 10, 12, None])
     assert c.n == 5
     assert any("descartados" in a for a in c.avisos)

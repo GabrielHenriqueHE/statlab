@@ -3,9 +3,10 @@
 Inventário feito a partir do menu do Minitab (lista colada pelo usuário), da brochure
 (`Minitab-Brochure_PT.pdf`) e do guia "Introdução ao Minitab" (`MinitabGettingStarted-v032024_PT.pdf`).
 
-O Minitab é um produto amplo (centenas de análises). O statlab é uma ferramenta **didática** para a disciplina
-de Probabilidade e Estatística, então a meta não é clonar o Minitab, e sim cobrir o que a disciplina usa, com
-as mesmas saídas e nomenclatura que o aluno vê no Minitab.
+O Minitab é um produto amplo (centenas de análises). O statlab cobre o que a disciplina de Probabilidade e
+Estatística usa, com as mesmas saídas e nomenclatura do Minitab — e, desde o pivô, com o mesmo contrato: **cada
+item abaixo é um comando que o usuário escolhe, com as opções explícitas no diálogo.** O app não troca o teste,
+não exclui dados e não redige conclusão (ver `CLAUDE.md`).
 
 ## Legenda
 
@@ -49,7 +50,7 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 | Correlograma (mapa de calor de r) | ✅ F2 | Pearson, pares completos por par de colunas |
 | Matriz de dispersão | ✅ F2 | pares completos em todas as colunas |
 | Gráfico de efeitos principais / interações | ✅ | na ANOVA de 2 fatores |
-| Gráfico de Tukey (ICs simultâneos) | ✅ F3 | página ANOVA, quando o Tukey é aplicado |
+| Gráfico de Tukey (ICs simultâneos) | ✅ | quando a opção Tukey é marcada |
 | Diagrama de pontos, mapa de calor genérico | 🔵 | baixa prioridade |
 | Gráficos de resíduos (4 em 1) | ✅ | regressão múltipla e ANOVA de 2 fatores |
 | Construtor de gráficos interativo (arrastar variáveis) | 🔵 | hoje uma página por tipo; o Minitab tem uma galeria |
@@ -67,36 +68,36 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 | Estatísticas descritivas (N, N*, média, EP, DP, quartis, IC) | ✅ F2 | formato do relatório do Minitab, por grupo |
 | Assimetria e curtose | ✅ F2 | G1 e G2 ajustadas, como no Minitab |
 | Teste de normalidade Anderson-Darling | ✅ F2 | padrão do Minitab; p por Stephens (validado pela brochure) |
-| Teste de normalidade Shapiro-Wilk | ✅ F3 | página Normalidade, ao lado do Anderson-Darling (aviso se discordarem) |
+| Teste de normalidade Shapiro-Wilk | ✅ | **opção** de método no comando Normalidade (sem o atalho do TCL) |
 | Teste de normalidade Ryan-Joiner | ⚪ | não implementado: sem referência verificável para o p (nota no README) |
-| Correlação (Pearson e Spearman) | ✅ F3 | página Correlação e regressão; decisão automática pela normalidade |
+| Correlação (Pearson e Spearman) | ✅ | **opção** do diálogo: o usuário escolhe o método |
 | Covariância | ✅ | Estatísticas descritivas, com 2+ variáveis (n − 1; pares completos por par) |
 | Teste de outlier (Grubbs) | 🔵 | a disciplina usa a regra do diagrama de caixa (já implementada) |
 | Teste Z para uma amostra | ✅ F3 | σ conhecido; avisa se a amostra não é normal com n < 30 |
-| Teste t para uma amostra | ✅ F3 | t, ou Wilcoxon para a mediana se não normal e n < 30 |
-| Teste t para duas amostras / pareado | ✅ F3 | páginas Dois grupos e Antes × depois |
-| Testes de uma e duas proporções | ✅ F3 | uma: z ou binomial exata; duas: z ou Fisher |
+| Teste t para uma amostra | ✅ | comando próprio; o Wilcoxon de uma amostra é outro comando |
+| Teste t para duas amostras / pareado | ✅ | 2 amostras tem a **opção** "assumir variâncias iguais" (combinada ou Welch) |
+| Testes de uma e duas proporções | ✅ | **opção** do método: z ou binomial exata (uma); z ou Fisher (duas) |
 | Taxa de Poisson (uma e duas amostras) | 🔵 | |
 | Teste para uma e duas variâncias | ✅ | página Variâncias: uma variância (χ², sem atalho do TCL; Bonett não implementado); duas também na página Dois grupos |
-| Teste de igualdade de variâncias (Levene/Bartlett) | ✅ | página Variâncias: F (2 grupos) ou Bartlett se normais; senão Levene (mediana) |
+| Teste de igualdade de variâncias (Levene/Bartlett) | ✅ | F, Bartlett e Levene (mediana) são **comandos distintos** |
 | Testes de equivalência | 🔵 | |
 
 ## Testes não paramétricos
 
 | Item do Minitab | Situação | Observação |
 |---|---|---|
-| Wilcoxon (pareado e uma amostra) | ✅ F3 | escolhido pelos pré-requisitos |
-| Mann-Whitney | ✅ F3 | escolhido pelos pré-requisitos |
-| Kruskal-Wallis + comparações | ✅ F3 | post hoc Mann-Whitney com Bonferroni (aviso: fora da apostila) |
-| Teste de sinal | ✅ | página Uma amostra (binomial exata); pareado = aplicar às diferenças |
+| Wilcoxon (pareado e uma amostra) | ✅ | comando escolhido pelo usuário |
+| Mann-Whitney | ✅ | comando escolhido pelo usuário |
+| Kruskal-Wallis + comparações | ✅ | comparações 2 a 2 (Mann-Whitney com Bonferroni) são **opção**; nota: fora da apostila |
+| Teste de sinal | ✅ | binomial exata; para pareado, aplicar à coluna das diferenças |
 | Friedman, mediana de Mood | 🔵 | |
 
 ## Tabelas e qui-quadrado
 
 | Item do Minitab | Situação | Observação |
 |---|---|---|
-| Teste exato de Fisher (2 × 2) | ✅ F3 | em Duas proporções e no qui-quadrado 2 × 2 com esperados pequenos |
-| Qui-quadrado (independência e ajuste) | ✅ F3 | Pearson (sem Yates) + razão de verossimilhança; critério de Cochran |
+| Teste exato de Fisher (2 × 2) | ✅ | comando próprio; também **opção** de método em Duas proporções |
+| Qui-quadrado (independência e ajuste) | ✅ | Pearson (sem Yates) + razão de verossimilhança; Cochran como nota |
 | Tabulação de contagens / cruzadas | ✅ F3 (parcial) | tabela de contingência a partir de duas colunas |
 | Estatísticas tabuladas (Construtor de tabelas) | 🔵 | média/contagem por grupo |
 
@@ -104,7 +105,7 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 
 | Item do Minitab | Situação | Observação |
 |---|---|---|
-| Regressão linear simples (com R², coeficientes, previsão) | ✅ F3 | só com correlação significativa (forçável, com aviso); aviso de extrapolação |
+| Regressão linear simples (com R², coeficientes, previsão) | ✅ | **sempre calculada** (é a múltipla com um preditor); nota de extrapolação |
 | Regressão linear múltipla | ✅ | coeficientes com VIF, S, R², R²(aj), R²(pred), ANOVA, predição com IC e IP; validada contra o guia do Minitab |
 | Regressão polinomial | 🔵 | |
 | Regressão não linear, ortogonal, PLS, Poisson, logística, Cox | ⚪ | fora da disciplina |
@@ -114,9 +115,9 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 
 | Item do Minitab | Situação | Observação |
 |---|---|---|
-| ANOVA de 1 fator (tabela SQ/QM/F/p/R²) | ✅ F3 | página Três ou mais grupos |
-| Tukey (comparações múltiplas) | ✅ F3 | tabela + gráfico de ICs simultâneos |
-| ANOVA de Welch (conferência) | ✅ F3 | mostrada como conferência |
+| ANOVA de 1 fator (tabela SQ/QM/F/p/R²) | ✅ | comando próprio; Kruskal-Wallis é outro comando |
+| Tukey (comparações múltiplas) | ✅ | **opção** do diálogo (nunca automático); tabela + gráfico de ICs simultâneos |
+| ANOVA de Welch | ✅ | **opção** do diálogo da ANOVA de 1 fator |
 | ANOVA de 2 fatores / modelo linear geral | ✅ / 🔵 | 2 fatores com ou sem interação (SQ ajustadas, validada contra o guia); modelo linear geral 🔵 |
 | Modelos mistos, MANOVA | ⚪ | |
 
@@ -158,15 +159,16 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 | Análise de componentes principais, fatorial, discriminante, conglomerados | ⚪ | |
 | CART, Random Forests, TreeNet, MARS, aprendizado de máquina automatizado | ⚪ | a brochure destaca, mas não é a disciplina |
 
-## Ferramentas de disciplina do statlab (fora do menu Minitab)
+## Ferramentas próprias do statlab
 
 | Item | Situação | Observação |
 |---|---|---|
-| Assistente "Qual teste usar?" (árvore de decisão) | ✅ F4 | por perguntas (com pendências para "não sei") ou rodando nos dados, com o caminho da decisão |
-| Conclusões em pt-BR no padrão da apostila | ✅ F5 | modelos da seção 10; conferidas contra os exemplos resolvidos |
-| Relatório HTML/Markdown exportável | ✅ F5 | botão "Adicionar ao relatório" em cada teste; HTML com gráficos, sem CDN |
-| Gerador de listas com gabarito (prática) | ✅ F6 | dados brutos como worksheet, gabarito e conferência pelo statlab |
-| Poder e tamanho de amostra | 🔵 | útil para ensino |
+| Assistente "Qual teste usar?" | ✅ | menu Assistente: responde perguntas e **indica o comando e as opções**; não analisa nada |
+| Janela de sessão | ✅ | a saída de cada comando acumula, como no Minitab |
+| Exportar a sessão (HTML/Markdown) | ✅ | HTML com gráficos, sem CDN |
+| Conclusões redigidas em pt-BR | ⚪ | **removido no pivô**: interpretar é do usuário (está na branch `main`) |
+| Gerador de listas com gabarito (prática) | ⚪ | **removido no pivô**: dependia da escolha automática do teste (está na branch `main`) |
+| Poder e tamanho de amostra | 🔵 | |
 
 ## Ferramentas gerais (brochure e guia)
 
@@ -189,3 +191,8 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 5. **Andamento (16/11/2026):** F4 concluída (assistente). Próximo: F5 (conclusões e relatório).
 6. **Andamento (16/11/2026):** F5 concluída (conclusões e relatório). Próximo: F6 (prática com o gerador de listas).
 7. **Andamento (16/11/2026):** F6 concluída. Todas as fases do plano original estão prontas; o backlog 🔵 acima continua disponível.
+8. **Pivô para o modelo Minitab (17/11/2026):** o app deixou de decidir pelo usuário. A troca automática de
+   teste, a exclusão automática de outliers, a análise "com e sem" suaves, o Tukey obrigatório, a trava da
+   regressão e as conclusões redigidas saíram; cada escolha virou opção de diálogo ou comando próprio. A
+   interface passou a ser menus + janela de sessão. O app guiado anterior está na branch `main`, e o modo
+   manual (F7) na `f7-modo-manual`.

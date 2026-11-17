@@ -1,7 +1,7 @@
 [project]
 name = "statlab"
 version = "0.1.0"
-description = "Análise estatística didática (pt-BR): pré-requisitos, testes de hipótese e conclusões redigidas."
+description = "Análise estatística em pt-BR no modelo do Minitab: você escolhe o comando e as opções, o app calcula."
 readme = "README.md"
 authors = [
     { name = "Gabriel Evaristo", email = "gabriel.evaristo.2004@gmail.com" }
@@ -44,7 +44,3 @@ src = ["src", "tests"]
 select = ["E", "F", "W", "I", "B", "UP", "N"]
 # ErroDeDados é nome de domínio em português (plano do projeto); não seguir o sufixo "Error".
 ignore = ["N818"]
-
-[tool.ruff.lint.per-file-ignores]
-# cópia do gerador da disciplina (docs/reference): mantida próxima do original para facilitar a comparação
-"src/statlab/pratica/gerador.py" = ["B905", "E501", "N806"]

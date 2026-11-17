@@ -1,4 +1,7 @@
-"""Testes t (pareado e independente) e os fluxos que escolhem entre paramétrico e não paramétrico.
+"""Testes t: uma amostra pareada e duas amostras independentes.
+
+Cada função roda **o** teste pedido, com as opções recebidas. Nada aqui escolhe entre paramétrico e
+não paramétrico nem mexe nos dados: isso é decisão de quem chama.
 
 Hipótese unilateral: só use ``alternativa='maior'`` ou ``'menor'`` se a direção foi definida antes
 de olhar os dados. Se a diferença observada for na direção oposta, o p unilateral sai > 0,5 (não significativo).
@@ -11,24 +14,11 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy import stats
 
-from statlab.core.dados import ErroDeDados, amostra, exigir_minimo, exigir_variacao, pares
-from statlab.core.descritiva import (
-    descrever,
-    detectar_outliers,
-    sem_extremos,
-    texto_outliers,
-    verificacao_outliers,
-)
+from statlab.core.dados import ErroDeDados, exigir_minimo, exigir_variacao
+from statlab.core.descritiva import descrever
 from statlab.core.formatacao import num, p_valor
-from statlab.core.nao_parametricos import (
-    TesteNaoParametrico,
-    mann_whitney,
-    validar_alternativa,
-    wilcoxon_pareado,
-)
-from statlab.core.normalidade import Normalidade, shapiro_wilk, verificacao_normalidade
-from statlab.core.resultados import ALPHA_PADRAO, ATENCAO, OK, Resultado, Verificacao
-from statlab.core.variancias import teste_f
+from statlab.core.nao_parametricos import validar_alternativa
+from statlab.core.resultados import ALPHA_PADRAO, Resultado
 
 
 def p_t_student(t: float, gl: float, alternativa: str) -> float:
@@ -102,24 +92,29 @@ def t_independente(
     a: np.ndarray,
     b: np.ndarray,
     *,
+    variancias_iguais: bool,
     alpha: float = ALPHA_PADRAO,
     alternativa: str = "bilateral",
     nome_a: str = "grupo 1",
     nome_b: str = "grupo 2",
+    confianca: float = 0.95,
 ) -> TesteT:
-    """t independente: variância combinada se F não rejeita a igualdade; senão Welch.
+    """t para duas amostras independentes.
 
-    IC 95% para μ_a − μ_b.
+    ``variancias_iguais`` é escolha de quem chama (não é decidida aqui): True usa a variância
+    combinada (gl = n1 + n2 − 2); False usa Welch (gl de Welch-Satterthwaite). Para avaliar a
+    igualdade das variâncias, rode o teste F (``variancias.teste_f``) como análise própria.
     """
     a = np.asarray(a, dtype=float)
     b = np.asarray(b, dtype=float)
-    var = teste_f(a, b, alpha=alpha)
+    exigir_minimo(a, 2, nome_a)
+    exigir_minimo(b, 2, nome_b)
     na, nb = len(a), len(b)
     va, vb = float(a.var(ddof=1)), float(b.var(ddof=1))
     ma, mb = float(a.mean()), float(b.mean())
     diff = ma - mb
 
-    if var.iguais:
+    if variancias_iguais:
         gl = float(na + nb - 2)
         sp = np.sqrt(((na - 1) * va + (nb - 1) * vb) / gl)
         ep = float(sp * np.sqrt(1 / na + 1 / nb))
@@ -131,18 +126,20 @@ def t_independente(
         nome = "t de Welch (variâncias diferentes)"
         extra = [f"EP = √(s²₁/n₁ + s²₂/n₂) = {num(ep, 3)}; gl (Welch-Satterthwaite) = {num(gl, 1)}"]
 
+    if ep == 0.0:
+        raise ErroDeDados("Os dois grupos não têm variação; o teste t não se aplica.")
     t = diff / ep
     p = p_t_student(t, gl, alternativa)
-    tc = float(stats.t.ppf(0.975, gl))
+    tc = float(stats.t.ppf(0.5 + confianca / 2, gl))
     ic = (diff - tc * ep, diff + tc * ep)
-    passos = (
-        list(var.passos)
-        + extra
-        + [
-            f"t = {num(t, 3)}; gl = {num(gl, 0 if var.iguais else 1)}; p {p_valor(p)} ({_rotulo_alt(alternativa)})",
-            f"IC 95% para μ({nome_a}) − μ({nome_b}): ({num(ic[0])}; {num(ic[1])})",
-        ]
-    )
+    pct_ic = num(confianca * 100, 0)
+    passos = [
+        _linha_descritiva(nome_a, a),
+        _linha_descritiva(nome_b, b),
+        *extra,
+        f"t = {num(t, 3)}; gl = {num(gl, 0 if variancias_iguais else 1)}; p {p_valor(p)} ({_rotulo_alt(alternativa)})",
+        f"IC {pct_ic}% para μ({nome_a}) − μ({nome_b}): ({num(ic[0])}; {num(ic[1])})",
+    ]
     return TesteT(
         nome=nome,
         alpha=alpha,
@@ -156,173 +153,10 @@ def t_independente(
         media_diferenca=diff,
         erro_padrao=ep,
         alternativa=alternativa,
-        variancias_iguais=var.iguais,
+        variancias_iguais=variancias_iguais,
         medias={nome_a: ma, nome_b: mb},
-        prerequisitos=[f"Variâncias: {var.passos[0]}"],
         passos=passos,
     )
-
-
-# ----------------------------------------------------------------------------- fluxos de decisão
-
-
-def _decidir_pareado(a: np.ndarray, b: np.ndarray, alpha: float, alternativa: str) -> tuple[Resultado, bool]:
-    """Escolhe t pareado (diferenças normais ou n ≥ 30) ou Wilcoxon. Devolve (resultado, normal_ok)."""
-    d = a - b
-    norm = shapiro_wilk(d, alpha=alpha, tcl=True, nome="diferenças")
-    if norm.atende:
-        return t_pareado(a, b, alpha=alpha, alternativa=alternativa), True
-    return wilcoxon_pareado(a, b, alpha=alpha, alternativa=alternativa), False
-
-
-def analisar_antes_depois(
-    antes: list[object] | np.ndarray,
-    depois: list[object] | np.ndarray,
-    *,
-    alpha: float = ALPHA_PADRAO,
-    alternativa: str = "bilateral",
-) -> Resultado:
-    """Análise completa de medidas pareadas: outliers, normalidade das diferenças, teste escolhido.
-
-    Extremos saem (aviso com n antes/depois); suaves são testados com e sem.
-    """
-    a, b, descartados = pares(antes, depois, "antes", "depois")
-    avisos: list[str] = []
-    prereq: list[str] = []
-    if descartados:
-        avisos.append(f"{descartados} par(es) com dado faltante foram descartados.")
-    exigir_minimo(a, 2, "Antes × depois")
-
-    d = a - b
-    out = detectar_outliers(d)
-    prereq.append(texto_outliers("diferenças d", d, out))
-    verif = [verificacao_outliers("diferenças d", d, out)]
-    if out.tem_extremo:
-        n_antes = len(a)
-        keep = ~out.extremo
-        a, b = a[keep], b[keep]
-        n_excl = int(out.extremo.sum())
-        avisos.append(f"{n_excl} par(es) com outlier extremo excluído(s): análise com n = {len(a)} (antes: {n_antes}).")
-        exigir_minimo(a, 2, "Antes × depois")
-        d = a - b
-        out = detectar_outliers(d)
-
-    res, normal_ok = _decidir_pareado(a, b, alpha, alternativa)
-    norm = shapiro_wilk(d, alpha=alpha, tcl=True, nome="diferenças")
-    prereq.append(norm.passos[0])
-    verif.append(verificacao_normalidade(norm, "diferenças d", "Wilcoxon (não paramétrico)"))
-    prereq.append(
-        "Normalidade das diferenças: " + ("atendida → t pareado." if normal_ok else "não atendida (n < 30) → Wilcoxon.")
-    )
-    res.passos = [_linha_descritiva("antes", a), _linha_descritiva("depois", b), *res.passos]
-
-    if out.tem_suave:
-        m = ~out.suave
-        try:
-            sub, _ = _decidir_pareado(a[m], b[m], alpha, alternativa) if int(m.sum()) >= 3 else (None, None)
-        except ErroDeDados:
-            sub = None
-            res.avisos.append(
-                "Sem o(s) outlier(s) suave(s), as diferenças ficam sem variação; a análise sem ele não foi feita."
-            )
-        if sub is not None:
-            mudou = sub.significativo != res.significativo
-            res.avisos.append(
-                f"Sem o(s) outlier(s) suave(s) (n = {int(m.sum())}): {sub.nome}, p {p_valor(sub.p)} → "
-                + (
-                    "a conclusão MUDA. Se for erro de medição, vale a análise sem ele; senão relate as duas."
-                    if mudou
-                    else "a conclusão se mantém."
-                )
-            )
-        elif int(m.sum()) < 3:
-            res.avisos.append("Poucos pares restam sem o outlier suave; a análise sem ele não foi feita.")
-
-    res.prerequisitos = prereq + res.prerequisitos
-    res.verificacoes = verif
-    res.avisos = avisos + res.avisos
-    return res
-
-
-def analisar_dois_grupos(
-    grupo_a: list[object] | np.ndarray,
-    grupo_b: list[object] | np.ndarray,
-    *,
-    alpha: float = ALPHA_PADRAO,
-    alternativa: str = "bilateral",
-    nome_a: str = "Grupo 1",
-    nome_b: str = "Grupo 2",
-) -> Resultado:
-    """Compara dois grupos independentes: t (normais ou n ≥ 30, com teste F) ou Mann-Whitney."""
-    a, fa = amostra(grupo_a, nome_a)
-    b, fb = amostra(grupo_b, nome_b)
-    avisos: list[str] = []
-    prereq: list[str] = []
-    if fa or fb:
-        avisos.append(f"Faltantes descartados: {nome_a} = {fa}; {nome_b} = {fb}.")
-    exigir_minimo(a, 2, nome_a)
-    exigir_minimo(b, 2, nome_b)
-
-    desc_txt = []
-    outs = {}
-    verif: list[Verificacao] = []
-    for nome, v in ((nome_a, a), (nome_b, b)):
-        out = detectar_outliers(v)
-        outs[nome] = out
-        prereq.append(texto_outliers(nome, v, out))
-        verif.append(verificacao_outliers(nome, v, out))
-        desc_txt.append(_linha_descritiva(nome, v))
-    if outs[nome_a].tem_extremo or outs[nome_b].tem_extremo:
-        n_antes = (len(a), len(b))
-        a = sem_extremos(a, outs[nome_a])
-        b = sem_extremos(b, outs[nome_b])
-        avisos.append(
-            f"Outliers extremos excluídos: {nome_a} n = {len(a)} (antes: {n_antes[0]}); "
-            f"{nome_b} n = {len(b)} (antes: {n_antes[1]})."
-        )
-        exigir_minimo(a, 2, nome_a)
-        exigir_minimo(b, 2, nome_b)
-
-    res, normal_ok, normalidades = _decidir_grupos(a, b, nome_a, nome_b, alpha, alternativa)
-    for nome, nr in zip((nome_a, nome_b), normalidades, strict=True):
-        verif.append(verificacao_normalidade(nr, nome, "Mann-Whitney (não paramétrico)"))
-    if isinstance(res, TesteT) and res.variancias_iguais is not None:
-        detalhe_var = res.prerequisitos[0].removeprefix("Variâncias: ") if res.prerequisitos else ""
-        verif.append(
-            Verificacao(
-                nome="Igualdade de variâncias (teste F)",
-                status=OK if res.variancias_iguais else ATENCAO,
-                detalhe=detalhe_var,
-            )
-        )
-    prereq.append(
-        "Normalidade e n ≥ 30: "
-        + ("atendidas → teste t." if normal_ok else "não atendidas em algum grupo → Mann-Whitney.")
-    )
-    res.passos = desc_txt + res.passos
-
-    # outliers suaves recalculados sobre a amostra já sem extremos (mesma regra das demais análises)
-    suave_a = detectar_outliers(a).suave
-    suave_b = detectar_outliers(b).suave
-    if suave_a.any() or suave_b.any():
-        a2, b2 = a[~suave_a], b[~suave_b]
-        try:
-            sub = _decidir_grupos(a2, b2, nome_a, nome_b, alpha, alternativa)[0] if min(len(a2), len(b2)) >= 3 else None
-        except ErroDeDados:
-            sub = None
-            res.avisos.append("Sem os outliers suaves, um grupo fica sem variação; a análise sem eles não foi feita.")
-        if sub is not None:
-            mudou = sub.significativo != res.significativo
-            res.avisos.append(
-                f"Sem os outliers suaves ({nome_a} n = {len(a2)}; {nome_b} n = {len(b2)}): {sub.nome}, p "
-                f"{p_valor(sub.p)} → "
-                + ("a conclusão MUDA; relate as duas análises." if mudou else "a conclusão se mantém.")
-            )
-
-    res.prerequisitos = prereq + res.prerequisitos
-    res.verificacoes = verif
-    res.avisos = avisos + res.avisos
-    return res
 
 
 def _linha_descritiva(nome: str, v: np.ndarray) -> str:
@@ -331,22 +165,3 @@ def _linha_descritiva(nome: str, v: np.ndarray) -> str:
         f"{nome}: n = {d.n}; média = {num(d.media)}; mediana = {num(d.mediana)}; "
         f"dp = {num(d.dp)}; variância = {num(d.variancia)}"
     )
-
-
-def _decidir_grupos(
-    a: np.ndarray,
-    b: np.ndarray,
-    nome_a: str,
-    nome_b: str,
-    alpha: float,
-    alternativa: str,
-) -> tuple[Resultado, bool, tuple[Normalidade, Normalidade]]:
-    """Escolhe t (ambos normais ou n ≥ 30) ou Mann-Whitney. Devolve (resultado, normal_ok, normalidades)."""
-    na = shapiro_wilk(a, alpha=alpha, tcl=True, nome=nome_a)
-    nb = shapiro_wilk(b, alpha=alpha, tcl=True, nome=nome_b)
-    if na.atende and nb.atende:
-        t = t_independente(a, b, alpha=alpha, alternativa=alternativa, nome_a=nome_a, nome_b=nome_b)
-        return t, True, (na, nb)
-    mw: TesteNaoParametrico = mann_whitney(a, b, alpha=alpha, alternativa=alternativa, nome_a=nome_a, nome_b=nome_b)
-    mw.passos = na.passos + nb.passos + mw.passos
-    return mw, False, (na, nb)

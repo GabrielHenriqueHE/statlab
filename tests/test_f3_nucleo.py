@@ -5,20 +5,19 @@ import pytest
 from scipy import stats
 
 from statlab import graficos
-from statlab.core.anova import analisar_grupos, tukey_hsd
-from statlab.core.correlacao import analisar_correlacao
+from statlab.core.anova import tukey_hsd
+from statlab.core.correlacao import correlacao
 from statlab.core.dados import ErroDeDados
-from statlab.core.proporcoes import analisar_proporcoes
+from statlab.core.nao_parametricos import kruskal_wallis
+from statlab.core.proporcoes import z_duas_proporcoes
 from statlab.core.qui_quadrado import aderencia, independencia, tabela_contingencia
 from statlab.core.resultados import ATENCAO, FALHA, OK
-from statlab.core.testes_t import analisar_antes_depois, analisar_dois_grupos
 from statlab.core.uma_amostra import (
-    analisar_uma_amostra,
-    analisar_uma_proporcao,
-    analisar_z,
+    binomial_uma_proporcao,
     t_uma_amostra,
     wilcoxon_uma_amostra,
     z_uma_amostra,
+    z_uma_proporcao,
 )
 from tests.helpers import aprox, gabarito, p_menor_que, pdf
 
@@ -62,50 +61,34 @@ def test_wilcoxon_uma_amostra_igual_ao_scipy():
     assert r.p == pytest.approx(float(ref.pvalue))
 
 
-def test_analisar_uma_amostra_normal_usa_t_e_preenche_verificacoes():
-    r = analisar_uma_amostra(list(X) + [None], 50, nome="Peso")
-    assert r.nome == "t para uma amostra"
-    assert r.n == 25
-    assert any("faltante" in a for a in r.avisos)
-    assert [v.nome for v in r.verificacoes] == ["Outliers — Peso", "Normalidade — Peso"]
-    assert r.verificacoes[1].status == OK
-
-
-def test_analisar_uma_amostra_nao_normal_pequena_usa_wilcoxon():
-    dados = np.r_[np.ones(10), 2.0, 2.5, 30.0, 35.0, 40.0]
-    r = analisar_uma_amostra(dados + np.linspace(0, 0.1, len(dados)), 1.0)
-    assert r.nome.startswith("Wilcoxon")
-    assert r.verificacoes[-1].status == FALHA
-
-
-def test_analisar_z_avisa_quando_nao_normal():
-    dados = np.r_[np.ones(10), 2.0, 2.5, 30.0, 35.0, 40.0] + np.linspace(0, 0.1, 15)  # assimetria forte
-    r = analisar_z(dados, 1.0, 1.0)
-    assert any("não é confiável" in a for a in r.avisos)
-
-
 def test_uma_proporcao_normal_formula():
-    r = analisar_uma_proporcao(58, 148, 0.5)
+    r = z_uma_proporcao(58, 148, 0.5)
     z = (58 / 148 - 0.5) / np.sqrt(0.25 / 148)
     assert r.nome.endswith("(aproximação normal)")
     assert r.estatistica == pytest.approx(z)
     assert r.p == pytest.approx(2 * stats.norm.sf(abs(z)))
 
 
-def test_uma_proporcao_pequena_usa_binomial_exata():
-    r = analisar_uma_proporcao(2, 10, 0.5, alternativa="menor")
+def test_uma_proporcao_binomial_exata():
+    r = binomial_uma_proporcao(2, 10, 0.5, alternativa="menor")
     ref = stats.binomtest(2, 10, 0.5, alternative="less")
     assert r.nome.endswith("(binomial exata)")
     assert r.p == pytest.approx(ref.pvalue)
     ci = stats.binomtest(2, 10, 0.5).proportion_ci(method="exact")
     assert r.ic == pytest.approx((ci.low, ci.high))
-    assert any(v.status == FALHA for v in r.verificacoes)
+
+
+def test_uma_proporcao_criterio_falho_e_so_diagnostico():
+    """n·p̂·q̂ = 1,6 < 5: o z roda se for pedido, com ⚠️ nas verificações."""
+    r = z_uma_proporcao(2, 10, 0.5)
+    assert r.nome.endswith("(aproximação normal)")
+    assert any(v.status == ATENCAO for v in r.verificacoes)
 
 
 @pytest.mark.parametrize("x, n, p0", [(11, 10, 0.5), (1, 0, 0.5), (1, 10, 0.0), (1, 10, 1.0)])
 def test_uma_proporcao_entradas_invalidas(x, n, p0):
     with pytest.raises(ErroDeDados):
-        analisar_uma_proporcao(x, n, p0)
+        z_uma_proporcao(x, n, p0)
 
 
 # --------------------------------------------------------------------------- qui-quadrado
@@ -127,23 +110,30 @@ def test_independencia_2x2_equivale_ao_z_das_proporcoes_gabarito_ex6():
     x1, n1 = g["g1"]
     x2, n2 = g["g2"]
     chi = independencia([[x1, n1 - x1], [x2, n2 - x2]])
-    prop = analisar_proporcoes(x1, n1, x2, n2)
+    prop = z_duas_proporcoes(x1, n1, x2, n2)
     assert chi.estatistica == pytest.approx(prop.z**2)
     assert chi.p == pytest.approx(prop.p)
     aprox(chi.p, 0.047, 3)
 
 
-def test_independencia_esperados_pequenos_2x2_usa_fisher():
-    r = independencia([[1, 9], [6, 4]])
+def test_independencia_fisher_quando_pedido():
+    r = independencia([[1, 9], [6, 4]], metodo="fisher")
     assert r.nome.startswith("Teste exato de Fisher")
     assert r.p == pytest.approx(stats.fisher_exact([[1, 9], [6, 4]]).pvalue)
-    assert r.verificacoes[0].status == FALHA
 
 
-def test_independencia_esperados_pequenos_tabela_maior_avisa_agrupar():
+def test_independencia_esperados_pequenos_nao_trocam_o_metodo():
+    """Antes o app pulava para Fisher sozinho; agora mantém o χ² pedido e avisa."""
+    r = independencia([[1, 9], [6, 4]])
+    assert r.nome == "Qui-quadrado de independência"
+    assert r.verificacoes[0].status == ATENCAO
+    assert any("Cochran" in a for a in r.avisos)
+
+
+def test_independencia_esperados_pequenos_tabela_maior_avisa():
     r = independencia([[1, 2, 30], [2, 1, 25], [0, 3, 40]])
     assert r.nome == "Qui-quadrado de independência"
-    assert any("agrupe categorias" in a for a in r.avisos)
+    assert any("agrupar" in a for a in r.avisos)
 
 
 @pytest.mark.parametrize(
@@ -190,46 +180,19 @@ def test_aderencia_entradas_invalidas():
 # --------------------------------------------------------------------------- verificações nos fluxos antigos
 
 
-def test_verificacoes_correlacao_pdf_ex3_tempo_nao_normal():
+def test_verificacoes_correlacao_pdf_ex3_sao_diagnostico():
     d = pdf()["ex3_atendimento"]
-    c = analisar_correlacao(d["x"], d["y"], nome_x="Tempo", nome_y="Produtividade")
+    c = correlacao(d["x"], d["y"], nome_x="Tempo", nome_y="Produtividade")
     status = {v.nome: v.status for v in c.verificacoes}
     assert status["Outliers — Produtividade"] == ATENCAO  # 1.100 é suave
     assert status["Normalidade — Tempo"] == FALHA
-    assert "Spearman" in next(v.detalhe for v in c.verificacoes if v.nome == "Normalidade — Tempo")
+    # o diagnóstico não manda trocar de método: o Pearson pedido foi o que rodou
+    assert c.metodo == "Pearson"
 
 
-def test_verificacoes_dois_grupos_gabarito_ex3_tudo_ok():
-    g = gabarito()["ex3"]
-    r = analisar_dois_grupos(g["a"], g["b"], nome_a="A", nome_b="B")
-    assert [v.status for v in r.verificacoes] == [OK, OK, OK, OK, OK]
-    assert r.verificacoes[-1].nome.startswith("Igualdade de variâncias")
-
-
-def test_verificacoes_dois_grupos_welch_marca_atencao():
-    d = pdf()["ex4_antes_depois"]  # variâncias muito diferentes (F: p < 0,001)
-    r = analisar_dois_grupos(d["antes"], d["depois"])
-    assert r.verificacoes[-1].status == ATENCAO
-
-
-def test_verificacoes_pareado_gabarito_ex10_extremo_e_nao_normal():
-    g = gabarito()["enunciado_bruto"]
-    r = analisar_antes_depois(g["ex10_antes"], g["ex10_depois"], alternativa="menor")
-    assert r.verificacoes[0].status == ATENCAO  # outlier extremo −42 (excluído) e suaves
-    assert r.verificacoes[1].status == FALHA  # diferenças não normais, n = 16 → Wilcoxon
-
-
-def test_verificacoes_anova_pdf_resistencia():
-    d = pdf()["ex7_resistencia"]
-    r = analisar_grupos({"G1": d["g1"], "G2": d["g2"], "G3": d["g3"]})
-    normal = {v.nome: v.status for v in r.verificacoes if v.nome.startswith("Normalidade")}
-    assert normal == {"Normalidade — G1": FALHA, "Normalidade — G2": OK, "Normalidade — G3": FALHA}
-    assert r.verificacoes[-1].nome.startswith("Variâncias semelhantes")
-
-
-def test_verificacoes_proporcoes_fisher():
-    r = analisar_proporcoes(2, 10, 5, 12)
-    assert [v.status for v in r.verificacoes] == [FALHA, FALHA]
+def test_verificacoes_proporcoes_criterio_nao_atendido():
+    r = z_duas_proporcoes(2, 10, 5, 12)
+    assert [v.status for v in r.verificacoes] == [ATENCAO, ATENCAO]
 
 
 # --------------------------------------------------------------------------- Tukey (gráfico)
@@ -252,6 +215,6 @@ def test_grafico_tukey_sem_ic_erro():
 
 def test_p_resistencia_kw_continua_igual():
     d = pdf()["ex7_resistencia"]
-    r = analisar_grupos({"G1": d["g1"], "G2": d["g2"], "G3": d["g3"]})
+    r = kruskal_wallis({"G1": d["g1"], "G2": d["g2"], "G3": d["g3"]})
     aprox(r.estatistica, 29.37, 2)
     p_menor_que(r.p)

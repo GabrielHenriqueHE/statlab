@@ -1,9 +1,9 @@
 """Página Prática: listas do gerador da disciplina, com gabarito e conferência pelo statlab."""
 
 import streamlit as st
+from statlab.core.conclusoes import concluir
 
 from statlab import pratica
-from statlab.core.conclusoes import concluir
 from statlab.ui import estado
 
 st.header("Prática")

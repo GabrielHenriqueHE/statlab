@@ -11,12 +11,10 @@ from dataclasses import dataclass
 import numpy as np
 from scipy import stats
 
-from statlab.core.dados import ErroDeDados, amostra, exigir_minimo, exigir_variacao
-from statlab.core.descritiva import detectar_outliers, sem_extremos, texto_outliers, verificacao_outliers
+from statlab.core.dados import ErroDeDados, exigir_minimo, exigir_variacao
 from statlab.core.formatacao import num, p_valor
 from statlab.core.nao_parametricos import validar_alternativa
-from statlab.core.normalidade import shapiro_wilk, verificacao_normalidade
-from statlab.core.resultados import ALPHA_PADRAO, FALHA, OK, Resultado, Verificacao
+from statlab.core.resultados import ALPHA_PADRAO, ATENCAO, OK, Resultado, Verificacao
 from statlab.core.testes_t import p_t_student
 
 _DESCR_ALT = {"bilateral": "≠", "maior": ">", "menor": "<"}
@@ -147,86 +145,6 @@ def z_uma_amostra(
     )
 
 
-def _preparar(valores: object, nome: str) -> tuple[np.ndarray, list[str], list[str], list[Verificacao], np.ndarray]:
-    """Faltantes, mínimo, outliers (extremos saem). Devolve (v, avisos, prereq, verificações, máscara de suaves)."""
-    v, faltantes = amostra(valores, nome)  # type: ignore[arg-type]
-    avisos: list[str] = []
-    if faltantes:
-        avisos.append(f"{faltantes} valor(es) faltante(s) descartado(s).")
-    exigir_minimo(v, 3, nome)
-    exigir_variacao(v, nome)
-    out = detectar_outliers(v)
-    prereq = [texto_outliers(nome, v, out)]
-    verif = [verificacao_outliers(nome, v, out)]
-    if out.tem_extremo:
-        n_antes = len(v)
-        v = sem_extremos(v, out)
-        avisos.append(f"Outlier extremo excluído: n = {len(v)} (antes: {n_antes}).")
-        exigir_minimo(v, 3, nome)
-    return v, avisos, prereq, verif, detectar_outliers(v).suave
-
-
-def analisar_uma_amostra(
-    valores: object,
-    mu0: float,
-    *,
-    alpha: float = ALPHA_PADRAO,
-    alternativa: str = "bilateral",
-    nome: str = "amostra",
-) -> UmaAmostra:
-    """Compara a média com μ0: t (normal ou n ≥ 30) ou, se não, Wilcoxon para a mediana."""
-    v, avisos, prereq, verif, suave = _preparar(valores, nome)
-    norm = shapiro_wilk(v, alpha=alpha, tcl=True, nome=nome)
-    prereq.append(norm.passos[0])
-    verif.append(verificacao_normalidade(norm, nome, "Wilcoxon para a mediana"))
-
-    def _rodar(x: np.ndarray) -> UmaAmostra:
-        if norm.atende:
-            return t_uma_amostra(x, mu0, alpha=alpha, alternativa=alternativa)
-        return wilcoxon_uma_amostra(x, mu0, alpha=alpha, alternativa=alternativa)
-
-    res = _rodar(v)
-    sub = None
-    if suave.any() and int((~suave).sum()) >= 3:
-        try:
-            sub = _rodar(v[~suave])
-        except ErroDeDados:
-            avisos.append("Sem o(s) outlier(s) suave(s), a amostra fica sem variação; a análise sem ele não foi feita.")
-    if sub is not None:
-        mudou = sub.significativo != res.significativo
-        avisos.append(
-            f"Sem o(s) outlier(s) suave(s) (n = {int((~suave).sum())}): p {p_valor(sub.p)} → "
-            + ("a conclusão MUDA; relate as duas análises." if mudou else "a conclusão se mantém.")
-        )
-    res.prerequisitos = prereq
-    res.verificacoes = verif
-    res.avisos = avisos + res.avisos
-    return res
-
-
-def analisar_z(
-    valores: object,
-    mu0: float,
-    sigma: float,
-    *,
-    alpha: float = ALPHA_PADRAO,
-    alternativa: str = "bilateral",
-    nome: str = "amostra",
-) -> UmaAmostra:
-    """Teste Z com σ conhecido. A normalidade (ou n ≥ 30) continua sendo pré-requisito e é informada."""
-    v, avisos, prereq, verif, _ = _preparar(valores, nome)
-    norm = shapiro_wilk(v, alpha=alpha, tcl=True, nome=nome)
-    prereq.append(norm.passos[0])
-    verif.append(verificacao_normalidade(norm, nome, "o Z pressupõe normalidade; interprete com cautela"))
-    res = z_uma_amostra(v, mu0, sigma, alpha=alpha, alternativa=alternativa)
-    if not norm.atende:
-        avisos.append("Amostra não normal com n < 30: o teste Z não é confiável (considere o Wilcoxon).")
-    res.prerequisitos = prereq
-    res.verificacoes = verif
-    res.avisos = avisos
-    return res
-
-
 # ----------------------------------------------------------------------------- uma proporção
 
 
@@ -237,18 +155,7 @@ class UmaProporcao(Resultado):
     alternativa: str = "bilateral"
 
 
-def analisar_uma_proporcao(
-    x: int,
-    n: int,
-    p0: float,
-    *,
-    alpha: float = ALPHA_PADRAO,
-    alternativa: str = "bilateral",
-) -> UmaProporcao:
-    """Proporção contra p0: z (aproximação normal) se n·p̂·q̂ ≥ 5 e n·p0 ≥ 5 e n·(1 − p0) ≥ 5; senão binomial exata.
-
-    IC 95%: normal (p̂ ± 1,96 √(p̂q̂/n)) no z; Clopper-Pearson (exato) na binomial.
-    """
+def _checar_proporcao(x: int, n: int, p0: float) -> tuple[int, int, float]:
     x, n = int(x), int(n)
     if n < 1:
         raise ErroDeDados("O total (n) deve ser pelo menos 1.")
@@ -256,51 +163,51 @@ def analisar_uma_proporcao(
         raise ErroDeDados(f"Ocorrências ({x}) devem estar entre 0 e o total ({n}).")
     if not 0 < p0 < 1:
         raise ErroDeDados("A proporção de referência p0 deve estar entre 0 e 1 (exclusive).")
-    scipy_alt = validar_alternativa(alternativa)
+    return x, n, x / n
+
+
+def criterios_uma_proporcao(x: int, n: int, p0: float) -> list[Verificacao]:
+    """Diagnóstico dos critérios da aproximação normal. Informativo: não troca o método."""
     ph = x / n
     pq = n * ph * (1 - ph)
-    pq_ok = pq >= 5
-    p0_ok = n * p0 >= 5 and n * (1 - p0) >= 5
-    verif = [
-        Verificacao(nome="n·p̂·q̂ ≥ 5 (apostila)", status=OK if pq_ok else FALHA, detalhe=f"n·p̂·q̂ = {num(pq)}"),
+    return [
+        Verificacao(
+            nome="n·p̂·q̂ ≥ 5 (apostila)",
+            status=OK if pq >= 5 else ATENCAO,
+            detalhe=f"n·p̂·q̂ = {num(pq)}",
+        ),
         Verificacao(
             nome="n·p0 ≥ 5 e n·(1 − p0) ≥ 5",
-            status=OK if p0_ok else FALHA,
-            detalhe=f"n·p0 = {num(n * p0)}; n·(1 − p0) = {num(n * (1 - p0))}"
-            + ("" if (pq_ok and p0_ok) else " → teste binomial exato"),
+            status=OK if (n * p0 >= 5 and n * (1 - p0) >= 5) else ATENCAO,
+            detalhe=f"n·p0 = {num(n * p0)}; n·(1 − p0) = {num(n * (1 - p0))}",
         ),
     ]
-    passos = [
-        f"H₀: p = {num(p0, 4)}; H₁: p {_DESCR_ALT[alternativa]} {num(p0, 4)}",
-        f"p̂ = {x}/{n} = {num(ph, 4)}",
-    ]
-    if pq_ok and p0_ok:
-        ep0 = np.sqrt(p0 * (1 - p0) / n)
-        z = (ph - p0) / ep0
-        p = _p_normal(z, alternativa)
-        margem = 1.959964 * np.sqrt(ph * (1 - ph) / n)
-        ic = (float(max(0.0, ph - margem)), float(min(1.0, ph + margem)))
-        passos += [
-            f"EP = √(p0·q0/n) = {num(ep0, 4)}; z = (p̂ − p0)/EP = {num(z, 3)}; p {p_valor(p)}",
-            f"IC 95% (normal): ({num(ic[0], 4)}; {num(ic[1], 4)})",
-        ]
-        nome, estat, rot = "Uma proporção (aproximação normal)", float(z), "z"
-    else:
-        bt = stats.binomtest(x, n, p0, alternative=scipy_alt)
-        p = float(bt.pvalue)
-        # IC sempre bilateral de 95% (como nos demais testes), mesmo com H₁ unilateral
-        ci = stats.binomtest(x, n, p0).proportion_ci(confidence_level=0.95, method="exact")
-        ic = (float(ci.low), float(ci.high))
-        passos += [
-            f"Binomial exata: p {p_valor(p)}",
-            f"IC 95% (Clopper-Pearson): ({num(ic[0], 4)}; {num(ic[1], 4)})",
-        ]
-        nome, estat, rot = "Uma proporção (binomial exata)", None, ""
+
+
+def z_uma_proporcao(
+    x: int,
+    n: int,
+    p0: float,
+    *,
+    alpha: float = ALPHA_PADRAO,
+    alternativa: str = "bilateral",
+    confianca: float = 0.95,
+) -> UmaProporcao:
+    """Proporção contra p0 pela aproximação normal. IC de Wald sobre p̂."""
+    x, n, ph = _checar_proporcao(x, n, p0)
+    validar_alternativa(alternativa)
+    ep0 = np.sqrt(p0 * (1 - p0) / n)
+    z = (ph - p0) / ep0
+    p = _p_normal(z, alternativa)
+    zc = float(stats.norm.ppf(0.5 + confianca / 2))
+    margem = zc * np.sqrt(ph * (1 - ph) / n)
+    ic = (float(max(0.0, ph - margem)), float(min(1.0, ph + margem)))
+    pct = num(confianca * 100, 0)
     return UmaProporcao(
-        nome=nome,
+        nome="Uma proporção (aproximação normal)",
         alpha=alpha,
-        estatistica=estat,
-        rotulo_estatistica=rot,
+        estatistica=float(z),
+        rotulo_estatistica="z",
         p=p,
         n=n,
         ic=ic,
@@ -308,8 +215,49 @@ def analisar_uma_proporcao(
         p_amostral=ph,
         p0=float(p0),
         alternativa=alternativa,
-        verificacoes=verif,
-        passos=passos,
+        verificacoes=criterios_uma_proporcao(x, n, p0),
+        passos=[
+            f"H₀: p = {num(p0, 4)}; H₁: p {_DESCR_ALT[alternativa]} {num(p0, 4)}",
+            f"p̂ = {x}/{n} = {num(ph, 4)}",
+            f"EP = √(p0·q0/n) = {num(ep0, 4)}; z = (p̂ − p0)/EP = {num(z, 3)}; p {p_valor(p)}",
+            f"IC {pct}% (normal): ({num(ic[0], 4)}; {num(ic[1], 4)})",
+        ],
+    )
+
+
+def binomial_uma_proporcao(
+    x: int,
+    n: int,
+    p0: float,
+    *,
+    alpha: float = ALPHA_PADRAO,
+    alternativa: str = "bilateral",
+    confianca: float = 0.95,
+) -> UmaProporcao:
+    """Proporção contra p0 pela binomial exata. IC de Clopper-Pearson (bilateral)."""
+    x, n, ph = _checar_proporcao(x, n, p0)
+    scipy_alt = validar_alternativa(alternativa)
+    p = float(stats.binomtest(x, n, p0, alternative=scipy_alt).pvalue)
+    ci = stats.binomtest(x, n, p0).proportion_ci(confidence_level=confianca, method="exact")
+    ic = (float(ci.low), float(ci.high))
+    pct = num(confianca * 100, 0)
+    return UmaProporcao(
+        nome="Uma proporção (binomial exata)",
+        alpha=alpha,
+        p=p,
+        n=n,
+        ic=ic,
+        ic_descricao="a proporção (p)",
+        p_amostral=ph,
+        p0=float(p0),
+        alternativa=alternativa,
+        verificacoes=criterios_uma_proporcao(x, n, p0),
+        passos=[
+            f"H₀: p = {num(p0, 4)}; H₁: p {_DESCR_ALT[alternativa]} {num(p0, 4)}",
+            f"p̂ = {x}/{n} = {num(ph, 4)}",
+            f"Binomial exata: p {p_valor(p)}",
+            f"IC {pct}% (Clopper-Pearson): ({num(ic[0], 4)}; {num(ic[1], 4)})",
+        ],
     )
 
 
@@ -350,42 +298,6 @@ def teste_sinal(
         alternativa=alternativa,
         passos=passos,
     )
-
-
-def analisar_sinal(
-    valores: object,
-    m0: float,
-    *,
-    alpha: float = ALPHA_PADRAO,
-    alternativa: str = "bilateral",
-    nome: str = "amostra",
-) -> UmaAmostra:
-    """Teste de sinal com a regra de outliers da disciplina (extremos saem; suaves: com e sem).
-
-    Não exige normalidade. É menos poderoso que o Wilcoxon (usa só o sinal, não a distância até m0).
-    """
-    v, avisos, prereq, verif, suave = _preparar(valores, nome)
-    res = teste_sinal(v, m0, alpha=alpha, alternativa=alternativa)
-    if suave.any() and int((~suave).sum()) >= 3:
-        try:
-            sub = teste_sinal(v[~suave], m0, alpha=alpha, alternativa=alternativa)
-        except ErroDeDados:
-            avisos.append("Sem o(s) outlier(s) suave(s), não sobram valores diferentes de m0; análise sem ele omitida.")
-        else:
-            mudou = sub.significativo != res.significativo
-            avisos.append(
-                f"Sem o(s) outlier(s) suave(s) (n = {int((~suave).sum())}): p {p_valor(sub.p)} → "
-                + ("a conclusão MUDA; relate as duas análises." if mudou else "a conclusão se mantém.")
-            )
-    if res.n is not None and res.n < len(v):
-        avisos.append(
-            f"{len(v) - res.n} valor(es) igual(is) à mediana de referência descartado(s) (n efetivo = {res.n})."
-        )
-    avisos.append("Teste de sinal: fora da apostila revisada (equivale ao Sinal para 1 amostra do Minitab).")
-    res.prerequisitos = prereq
-    res.verificacoes = verif
-    res.avisos = avisos
-    return res
 
 
 # ----------------------------------------------------------------------------- uma variância (qui-quadrado)
@@ -446,48 +358,3 @@ def qui_quadrado_variancia(
             f"{num(ic_dp[1], 4)})",
         ],
     )
-
-
-def analisar_uma_variancia(
-    valores: object,
-    sigma0: float,
-    *,
-    alpha: float = ALPHA_PADRAO,
-    alternativa: str = "bilateral",
-    nome: str = "amostra",
-) -> UmaVariancia:
-    """Teste χ² para uma variância, com outliers pela regra da disciplina e normalidade SEM o atalho do TCL.
-
-    O χ² para variância não é robusto à falta de normalidade, nem com n grande; por isso o TCL não vale aqui.
-    """
-    v, avisos, prereq, verif, suave = _preparar(valores, nome)
-    norm = shapiro_wilk(v, alpha=alpha, tcl=False, nome=nome)
-    prereq.append(norm.passos[0])
-    verif.append(
-        verificacao_normalidade(
-            norm, nome, "o χ² para variância não é confiável (o TCL não vale para variâncias, mesmo com n ≥ 30)"
-        )
-    )
-    res = qui_quadrado_variancia(v, sigma0, alpha=alpha, alternativa=alternativa)
-    res.confiavel = norm.normal
-    if not norm.normal:
-        avisos.append(
-            "Amostra não normal: o teste χ² para uma variância pode dar p muito errado. O Minitab oferece, nesse "
-            "caso, o método de Bonett (não implementado no statlab); interprete este resultado com cautela."
-        )
-    if suave.any() and int((~suave).sum()) >= 3:
-        try:
-            sub = qui_quadrado_variancia(v[~suave], sigma0, alpha=alpha, alternativa=alternativa)
-        except ErroDeDados:
-            avisos.append("Sem o(s) outlier(s) suave(s), a amostra fica sem variação; a análise sem ele não foi feita.")
-        else:
-            mudou = sub.significativo != res.significativo
-            avisos.append(
-                f"Sem o(s) outlier(s) suave(s) (n = {int((~suave).sum())}): p {p_valor(sub.p)} → "
-                + ("a conclusão MUDA; relate as duas análises." if mudou else "a conclusão se mantém.")
-            )
-    avisos.append("Teste de uma variância: fora da apostila revisada (equivale ao Teste de 1 variância do Minitab).")
-    res.prerequisitos = prereq
-    res.verificacoes = verif
-    res.avisos = avisos
-    return res

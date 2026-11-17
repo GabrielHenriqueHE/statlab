@@ -1,11 +1,8 @@
-"""Correlação linear (Pearson) e por postos (Spearman), com decisão automática de método.
+"""Correlação linear (Pearson) e por postos (Spearman).
 
-Fluxo (padrão da disciplina):
-1. pareia x e y (descarta pares com faltantes);
-2. diagnostica outliers; exclui os extremos (com aviso);
-3. Shapiro-Wilk em x e y, **sem** o atalho n ≥ 30 → Pearson se ambos normais, senão Spearman;
-4. calcula r, p, r crítico (tabela A.6) e, se significativo, a força e r²;
-5. repete a análise sem os outliers suaves e informa se a conclusão muda.
+O método é escolha de quem chama. A função pareia x e y (descartando pares com faltantes e
+reportando quantos), calcula r, p, os valores críticos da tabela A.6, a força e r², e reporta a
+normalidade de x e de y como diagnóstico — sem trocar de método e sem excluir outliers.
 """
 
 from __future__ import annotations
@@ -16,7 +13,7 @@ import numpy as np
 from scipy import stats
 
 from statlab.core.dados import ErroDeDados, exigir_minimo, exigir_variacao, pares
-from statlab.core.descritiva import detectar_outliers, texto_outliers, verificacao_outliers
+from statlab.core.descritiva import detectar_outliers, verificacao_outliers
 from statlab.core.formatacao import num, p_valor
 from statlab.core.normalidade import shapiro_wilk, verificacao_normalidade
 from statlab.core.resultados import ALPHA_PADRAO, Resultado
@@ -77,7 +74,7 @@ def forca(r: float) -> str:
 class Correlacao(Resultado):
     nome_x: str = "x"
     nome_y: str = "y"
-    metodo: str = ""  # "Pearson" ou "Spearman" (o usado na decisão)
+    metodo: str = ""  # "Pearson" ou "Spearman" (o que foi pedido)
     r: float = 0.0
     r_s: float = 0.0
     p_pearson: float = 1.0
@@ -85,7 +82,7 @@ class Correlacao(Resultado):
     r2: float = 0.0  # r² de Pearson: % da variação de y explicada por x (interpretar se normal)
     r_critico_5: float = 0.0
     r_critico_1: float = 0.0
-    forca: str | None = None  # só preenchido quando significativo
+    forca: str | None = None  # classificação de |r| (interpretar só se significativo)
     normal_x: bool = False
     normal_y: bool = False
     n_extremos_excluidos: int = 0
@@ -97,132 +94,84 @@ class Correlacao(Resultado):
     y_usado: np.ndarray = field(default_factory=lambda: np.array([], dtype=float))
 
 
-def analisar_correlacao(
+def correlacao(
     x: list[object] | np.ndarray,
     y: list[object] | np.ndarray,
     *,
+    metodo: str = "Pearson",
     alpha: float = ALPHA_PADRAO,
     nome_x: str = "x",
     nome_y: str = "y",
 ) -> Correlacao:
-    xs, ys, descartados = pares(x, y, nome_x, nome_y)
-    passos: list[str] = []
-    avisos: list[str] = []
-    prereq: list[str] = []
+    """Correlação entre x e y pelo método pedido ("Pearson" ou "Spearman").
 
-    if descartados:
-        avisos.append(f"{descartados} par(es) com dado faltante foram descartados.")
-    exigir_minimo(xs, N_MINIMO_PARES, "Correlação")
+    Usa apenas os pares completos (reportando quantos foram descartados). A normalidade de x e de y
+    entra como diagnóstico: aqui não vale o atalho do TCL, mas a leitura é do usuário.
+    """
+    if metodo not in ("Pearson", "Spearman"):
+        raise ErroDeDados(f"Método de correlação desconhecido: {metodo!r}. Use 'Pearson' ou 'Spearman'.")
+    xs, ys, descartados = pares(x, y, nome_x, nome_y)
+    exigir_minimo(xs, N_MINIMO_PARES, "pares (x, y)")
     exigir_variacao(xs, nome_x)
     exigir_variacao(ys, nome_y)
-
-    # 1) outliers: extremos saem da análise, suaves ficam (e são testados com e sem)
-    ox, oy = detectar_outliers(xs), detectar_outliers(ys)
-    prereq.append(texto_outliers(nome_x, xs, ox))
-    prereq.append(texto_outliers(nome_y, ys, oy))
-    verif = [verificacao_outliers(nome_x, xs, ox), verificacao_outliers(nome_y, ys, oy)]
-    extremo = ox.extremo | oy.extremo
-    n_extremos = int(extremo.sum())
-    if n_extremos:
-        n_antes = len(xs)
-        xs, ys = xs[~extremo], ys[~extremo]
-        avisos.append(
-            f"{n_extremos} par(es) com outlier extremo excluído(s): análise com n = {len(xs)} (antes: {n_antes})."
-        )
-        exigir_minimo(xs, N_MINIMO_PARES, "Correlação")
-        exigir_variacao(xs, nome_x)
-        exigir_variacao(ys, nome_y)
     n = len(xs)
 
-    # 2) normalidade (sem o atalho n ≥ 30)
+    r_p, p_p = pearson(xs, ys)
+    r_s, p_s = spearman(xs, ys)
+    r_dec, p_dec = (r_p, p_p) if metodo == "Pearson" else (r_s, p_s)
+    rotulo = "r" if metodo == "Pearson" else "rₛ"
+
     nx = shapiro_wilk(xs, alpha=alpha, tcl=False, nome=nome_x)
     ny = shapiro_wilk(ys, alpha=alpha, tcl=False, nome=nome_y)
-    prereq.append(nx.passos[0])
-    prereq.append(ny.passos[0])
-    verif.append(verificacao_normalidade(nx, nome_x, "Pearson não indicado; decisão por Spearman"))
-    verif.append(verificacao_normalidade(ny, nome_y, "Pearson não indicado; decisão por Spearman"))
-    normal = nx.normal and ny.normal
+    out_x, out_y = detectar_outliers(xs), detectar_outliers(ys)
 
-    # 3) cálculo
-    r, p_p = pearson(xs, ys)
-    rs, p_s = spearman(xs, ys)
+    avisos: list[str] = []
+    if descartados:
+        avisos.append(f"{descartados} par(es) com dado faltante foram descartados: n = {n}.")
+    if p_dec > alpha:
+        avisos.append(
+            f"A correlação não é significativa (p {p_valor(p_dec)} > α = {num(alpha, 2)}): a classificação "
+            "da força e o r² não devem ser interpretados."
+        )
+
     rc5, rc1 = r_critico(n, 0.05), r_critico(n, 0.01)
-    p_dec = p_p if normal else p_s
-    r_dec = r if normal else rs
-    metodo = "Pearson" if normal else "Spearman"
-    significativo = p_dec <= alpha
-
-    passos.append(f"Pearson: n = {n}; r = {num(r, 3)}; p {p_valor(p_p)}")
-    passos.append(f"Valores críticos (n = {n}): {num(rc5, 3)} (5%) e {num(rc1, 3)} (1%) → |r| = {num(abs(r), 3)}")
-    passos.append(f"Spearman: rₛ = {num(rs, 3)}; p {p_valor(p_s)}")
-    if normal:
-        passos.append("Ambas as variáveis normais → usar Pearson.")
-    else:
-        passos.append("Falta normalidade em pelo menos uma variável → usar Spearman (Pearson só como conferência).")
-    resumo = "significativa" if significativo else "não significativa"
-    passos.append(f"Decisão: p = {p_valor(p_dec)} ({metodo}) → {resumo}")
-    if significativo:
-        passos.append(f"Força ({metodo}): |{'r' if normal else 'rₛ'}| = {num(abs(r_dec), 3)} → {forca(r_dec)}")
-        if normal:
-            passos.append(f"r² = {num(r * r * 100, 1)}%")
-
-    # 4) sem outliers suaves
-    ox2, oy2 = detectar_outliers(xs), detectar_outliers(ys)
-    suave = ox2.suave | oy2.suave
-    r_sem = p_sem = n_sem = muda = None
-    if suave.any():
-        m = ~suave
-        n_sem = int(m.sum())
-        if n_sem >= N_MINIMO_PARES and float(np.ptp(xs[m])) > 0 and float(np.ptp(ys[m])) > 0:
-            r2_, p2_ = pearson(xs[m], ys[m])
-            rs2, ps2 = spearman(xs[m], ys[m])
-            r_sem, p_sem = (r2_, p2_) if normal else (rs2, ps2)
-            muda = bool((p_sem <= alpha) != significativo)
-            passos.append(f"Sem o(s) outlier(s) suave(s) (n = {n_sem}): {metodo} = {num(r_sem, 3)}; p {p_valor(p_sem)}")
-            avisos.append(
-                "A conclusão muda sem o outlier suave. Se for erro de medição, a análise sem ele vale; "
-                "se for dado real, relate as duas análises."
-                if muda
-                else "A conclusão se mantém com ou sem o outlier suave."
-            )
-        elif n_sem >= N_MINIMO_PARES:
-            n_sem = None
-            avisos.append(
-                "Sem o(s) outlier(s) suave(s), uma das variáveis fica sem variação; a análise sem ele não foi feita."
-            )
-        else:
-            avisos.append("Poucos pares restam sem o outlier suave; a análise sem ele não foi feita.")
-
+    passos = [
+        f"n = {n} pares",
+        f"Pearson: r = {num(r_p, 4)}; p {p_valor(p_p)}",
+        f"Spearman: rₛ = {num(r_s, 4)}; p {p_valor(p_s)}",
+        f"Valores críticos de |r| (tabela A.6, n = {n}): {num(rc5, 3)} a 5% e {num(rc1, 3)} a 1%",
+        f"{metodo}: {rotulo} = {num(r_dec, 4)}; p {p_valor(p_dec)}; "
+        f"força de |{rotulo}| = {forca(r_dec)}; {rotulo}² = {num(r_dec * r_dec * 100, 1)}%",
+    ]
     return Correlacao(
         nome=f"Correlação de {metodo}",
         alpha=alpha,
         estatistica=r_dec,
-        rotulo_estatistica="r" if normal else "rₛ",
-        gl=(float(n - 2),),
+        rotulo_estatistica=rotulo,
+        gl=(float(n - 2),) if metodo == "Pearson" else None,
         p=p_dec,
         n=n,
-        metodo=metodo,
         nome_x=nome_x,
         nome_y=nome_y,
-        r=r,
-        r_s=rs,
+        metodo=metodo,
+        r=r_p,
+        r_s=r_s,
         p_pearson=p_p,
         p_spearman=p_s,
-        r2=r * r,
+        r2=r_dec * r_dec,
         r_critico_5=rc5,
         r_critico_1=rc1,
-        forca=forca(r_dec) if significativo else None,
+        forca=forca(r_dec),
         normal_x=nx.normal,
         normal_y=ny.normal,
-        n_extremos_excluidos=n_extremos,
-        r_sem_suave=r_sem,
-        p_sem_suave=p_sem,
-        n_sem_suave=n_sem,
-        conclusao_muda=muda,
         x_usado=xs,
         y_usado=ys,
-        prerequisitos=prereq,
-        verificacoes=verif,
+        verificacoes=[
+            verificacao_outliers(nome_x, xs, out_x),
+            verificacao_outliers(nome_y, ys, out_y),
+            verificacao_normalidade(nx, nome_x),
+            verificacao_normalidade(ny, nome_y),
+        ],
         passos=passos,
         avisos=avisos,
     )

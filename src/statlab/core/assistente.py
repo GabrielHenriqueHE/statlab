@@ -1,24 +1,13 @@
 """Assistente "Qual teste usar?" (Tabela 2 da apostila).
 
-Dois modos:
-- ``decidir``: árvore de decisão por perguntas, sem dados. Respostas ``None`` ("não sei") viram pendências,
-  dizendo o que verificar e em qual página.
-- ``analisar``: roda a análise com os dados (as mesmas funções das páginas) e ``caminho`` explica o percurso:
-  cada pré-requisito verificado e por que o teste final foi escolhido.
+``decidir`` é uma árvore de perguntas que **indica o comando a usar** — ela não recebe dados, não
+roda análise e não decide nada por conta própria. Respostas ``None`` ("não sei") viram pendências,
+dizendo o que verificar e com qual comando.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
-
-from statlab.core.anova import analisar_grupos
-from statlab.core.correlacao import analisar_correlacao
-from statlab.core.proporcoes import analisar_proporcoes
-from statlab.core.qui_quadrado import independencia
-from statlab.core.resultados import ALPHA_PADRAO, ATENCAO, FALHA, OK, Resultado
-from statlab.core.testes_t import analisar_antes_depois, analisar_dois_grupos
-from statlab.core.uma_amostra import analisar_uma_amostra
 
 
 @dataclass(frozen=True)
@@ -189,77 +178,3 @@ def decidir(
 
 
 # ----------------------------------------------------------------------------- com os dados
-
-
-def analisar(objetivo: str, *, alpha: float = ALPHA_PADRAO, **dados: Any) -> Resultado:
-    """Roda a análise do objetivo com os dados. Argumentos por objetivo:
-
-    relacao: x, y, nome_x, nome_y | dois_grupos: a, b, nome_a, nome_b, alternativa | pareado: antes, depois,
-    alternativa | tres_grupos: grupos | proporcoes: x1, n1, x2, n2, nome_1, nome_2, alternativa |
-    associacao: tabela | uma_amostra: valores, mu0, nome, alternativa
-    """
-    _objetivo(objetivo)
-    if objetivo == "relacao":
-        return analisar_correlacao(
-            dados["x"], dados["y"], alpha=alpha, nome_x=dados.get("nome_x", "x"), nome_y=dados.get("nome_y", "y")
-        )
-    if objetivo == "dois_grupos":
-        return analisar_dois_grupos(
-            dados["a"],
-            dados["b"],
-            alpha=alpha,
-            alternativa=dados.get("alternativa", "bilateral"),
-            nome_a=dados.get("nome_a", "Grupo 1"),
-            nome_b=dados.get("nome_b", "Grupo 2"),
-        )
-    if objetivo == "pareado":
-        return analisar_antes_depois(
-            dados["antes"], dados["depois"], alpha=alpha, alternativa=dados.get("alternativa", "bilateral")
-        )
-    if objetivo == "tres_grupos":
-        return analisar_grupos(dados["grupos"], alpha=alpha)
-    if objetivo == "proporcoes":
-        return analisar_proporcoes(
-            dados["x1"],
-            dados["n1"],
-            dados["x2"],
-            dados["n2"],
-            alpha=alpha,
-            alternativa=dados.get("alternativa", "bilateral"),
-            nome_1=dados.get("nome_1", "grupo 1"),
-            nome_2=dados.get("nome_2", "grupo 2"),
-        )
-    if objetivo == "associacao":
-        return independencia(dados["tabela"], alpha=alpha)
-    return analisar_uma_amostra(
-        dados["valores"],
-        dados["mu0"],
-        alpha=alpha,
-        alternativa=dados.get("alternativa", "bilateral"),
-        nome=dados.get("nome", "amostra"),
-    )
-
-
-_SIMBOLO = {OK: "✅", ATENCAO: "⚠️", FALHA: "❌"}
-
-
-def foi_parametrico(res: Resultado) -> bool:
-    """Se o teste escolhido é o paramétrico do objetivo (pelo nome do teste)."""
-    nao_param = ("Spearman", "Mann-Whitney", "Wilcoxon", "Kruskal-Wallis", "Fisher")
-    return not any(marca in res.nome for marca in nao_param)
-
-
-def caminho(objetivo: str, res: Resultado) -> list[str]:
-    """Percurso da decisão, em texto: objetivo, cada pré-requisito verificado e o teste escolhido com o motivo."""
-    obj = _objetivo(objetivo)
-    linhas = [f"Objetivo: {obj.descricao}", f"Teste paramétrico indicado: {obj.parametrico}"]
-    linhas += [f"{_SIMBOLO.get(v.status, '•')} {v.nome}: {v.detalhe}" for v in res.verificacoes]
-    violados = [v.nome for v in res.verificacoes if v.status == FALHA]
-    if foi_parametrico(res):
-        motivo = "pré-requisitos atendidos"
-        if any(v.status == ATENCAO for v in res.verificacoes):
-            motivo += " (com ressalvas ⚠️ acima)"
-    else:
-        motivo = "pré-requisito violado: " + "; ".join(violados) if violados else "pré-requisito não atendido"
-    linhas.append(f"Teste escolhido: {res.nome} — {motivo}")
-    return linhas

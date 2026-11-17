@@ -16,7 +16,7 @@ from scipy import stats
 
 from statlab.core.dados import ErroDeDados
 from statlab.core.formatacao import num, p_valor
-from statlab.core.resultados import ALPHA_PADRAO, FALHA, OK, Resultado, Verificacao
+from statlab.core.resultados import ALPHA_PADRAO, ATENCAO, OK, Resultado, Verificacao
 
 AVISO_FORA_APOSTILA = "O qui-quadrado não faz parte da apostila revisada; confirme com o professor se for cobrado."
 
@@ -76,9 +76,17 @@ def _matriz(tabela: Sequence[Sequence[float]] | pd.DataFrame) -> tuple[np.ndarra
 def independencia(
     tabela: Sequence[Sequence[float]] | pd.DataFrame,
     *,
+    metodo: str = "chi2",
     alpha: float = ALPHA_PADRAO,
 ) -> QuiQuadrado:
-    """Qui-quadrado de Pearson para independência (sem correção de Yates, como o Minitab) e razão de verossimilhança."""
+    """Associação entre duas variáveis categóricas na tabela de contingência.
+
+    ``metodo="chi2"``: qui-quadrado de Pearson, sem correção de Yates (como o Minitab), com a razão
+    de verossimilhança como conferência. ``metodo="fisher"``: teste exato de Fisher (tabela 2 × 2).
+    O critério de Cochran é reportado como diagnóstico — não troca o método.
+    """
+    if metodo not in ("chi2", "fisher"):
+        raise ErroDeDados(f"Método desconhecido: {metodo!r}. Use 'chi2' ou 'fisher'.")
     obs, linhas, colunas = _matriz(tabela)
     chi2, p, gl, esperados = stats.chi2_contingency(obs, correction=False)
     g2, p_g2, _, _ = stats.chi2_contingency(obs, correction=False, lambda_="log-likelihood")
@@ -86,27 +94,38 @@ def independencia(
     verif = [
         Verificacao(
             nome="Contagens esperadas (critério de Cochran)",
-            status=OK if ok else FALHA,
-            detalhe=detalhe + ("" if ok else " → qui-quadrado não confiável"),
+            status=OK if ok else ATENCAO,
+            detalhe=detalhe,
         )
     ]
     avisos = [AVISO_FORA_APOSTILA]
-    passos = [
-        "H₀: as duas variáveis são independentes; H₁: há associação entre elas",
-        f"χ² de Pearson = {num(float(chi2), 3)}; gl = {int(gl)}; p {p_valor(float(p))}",
-        f"Razão de verossimilhança G² = {num(float(g2), 3)}; p {p_valor(float(p_g2))} (conferência)",
-    ]
-    nome, estat, rot, p_dec, gl_dec, p_fisher = "Qui-quadrado de independência", float(chi2), "χ²", float(p), gl, None
-    if not ok:
-        if obs.shape == (2, 2):
-            fisher = stats.fisher_exact(obs.astype(int))
-            p_fisher = float(fisher.pvalue)
-            nome, estat, rot, p_dec, gl_dec = "Teste exato de Fisher (2 × 2)", None, "", p_fisher, None
-            passos.append(f"Esperados pequenos numa tabela 2 × 2 → exato de Fisher: p {p_valor(p_fisher)}")
-        else:
-            avisos.append(
-                "Muitas contagens esperadas pequenas: agrupe categorias com poucas observações antes de concluir."
+
+    if metodo == "fisher":
+        if obs.shape != (2, 2):
+            raise ErroDeDados(
+                f"O exato de Fisher aqui exige uma tabela 2 × 2 (a sua é {obs.shape[0]} × {obs.shape[1]})."
             )
+        p_fisher = float(stats.fisher_exact(obs.astype(int)).pvalue)
+        nome, estat, rot, p_dec, gl_dec = "Teste exato de Fisher (2 × 2)", None, "", p_fisher, None
+        passos = [
+            "H₀: as duas variáveis são independentes; H₁: há associação entre elas",
+            f"Exato de Fisher (2 × 2): p {p_valor(p_fisher)}",
+        ]
+    else:
+        p_fisher = None
+        nome, estat, rot, p_dec, gl_dec = "Qui-quadrado de independência", float(chi2), "χ²", float(p), gl
+        passos = [
+            "H₀: as duas variáveis são independentes; H₁: há associação entre elas",
+            f"χ² de Pearson = {num(float(chi2), 3)}; gl = {int(gl)}; p {p_valor(float(p))}",
+            f"Razão de verossimilhança G² = {num(float(g2), 3)}; p {p_valor(float(p_g2))} (conferência)",
+        ]
+        if not ok:
+            avisos.append(
+                "Há contagens esperadas pequenas (veja o critério de Cochran): o χ² fica menos confiável. "
+                "Numa tabela 2 × 2, o exato de Fisher é uma alternativa; em tabelas maiores, agrupar "
+                "categorias é o caminho usual."
+            )
+
     return QuiQuadrado(
         nome=nome,
         alpha=alpha,
@@ -170,8 +189,8 @@ def aderencia(
         verificacoes=[
             Verificacao(
                 nome="Contagens esperadas (critério de Cochran)",
-                status=OK if ok else FALHA,
-                detalhe=detalhe + ("" if ok else " → agrupe categorias antes de concluir"),
+                status=OK if ok else ATENCAO,
+                detalhe=detalhe,
             )
         ],
         passos=[
