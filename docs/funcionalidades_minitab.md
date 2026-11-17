@@ -49,7 +49,7 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 | Correlograma (mapa de calor de r) | ✅ F2 | Pearson, pares completos por par de colunas |
 | Matriz de dispersão | ✅ F2 | pares completos em todas as colunas |
 | Gráfico de efeitos principais / interações | 🔵 | vem com DOE |
-| Gráfico de Tukey (ICs simultâneos) | 🟡 | dados prontos (`tukey_hsd`); falta gráfico e tela (F3) |
+| Gráfico de Tukey (ICs simultâneos) | ✅ F3 | página ANOVA, quando o Tukey é aplicado |
 | Diagrama de pontos, mapa de calor genérico | 🔵 | baixa prioridade |
 | Gráficos de resíduos (4 em 1) | 🔵 | depende de ANOVA/regressão na tela |
 | Construtor de gráficos interativo (arrastar variáveis) | 🔵 | hoje uma página por tipo; o Minitab tem uma galeria |
@@ -58,7 +58,7 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 | Função "brush" (selecionar pontos) | 🔵 | Plotly tem seleção nativa; falta usar o resultado |
 | Atualização automática com os dados | ✅ | gráficos são recalculados a partir da worksheet ativa |
 | Exportar HTML interativo | ✅ F2 | plotly.js embutido, sem CDN |
-| Exportar PNG/SVG (TIF, JPEG, BMP, GIF, EMF) | 🔵 | exige Kaleido + Chrome; ver decisão pendente |
+| Exportar PNG/SVG (TIF, JPEG, BMP, GIF, EMF) | ⚪ | decidido: só HTML; PNG pelo botão de câmera do gráfico no navegador |
 
 ## Estatísticas básicas
 
@@ -67,26 +67,26 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 | Estatísticas descritivas (N, N*, média, EP, DP, quartis, IC) | ✅ F2 | formato do relatório do Minitab, por grupo |
 | Assimetria e curtose | ✅ F2 | G1 e G2 ajustadas, como no Minitab |
 | Teste de normalidade Anderson-Darling | ✅ F2 | padrão do Minitab; p por Stephens (validado pela brochure) |
-| Teste de normalidade Shapiro-Wilk | ✅ F1 | padrão da disciplina; exposto na tela de descritivas (F3) |
-| Correlação (Pearson e Spearman) | ✅ F1 | decisão automática; tela em F3 |
+| Teste de normalidade Shapiro-Wilk | ✅ F3 | página Normalidade, ao lado do Anderson-Darling (aviso se discordarem) |
+| Correlação (Pearson e Spearman) | ✅ F3 | página Correlação e regressão; decisão automática pela normalidade |
 | Covariância | 🔵 | trivial; falta tela |
 | Teste de outlier (Grubbs) | 🔵 | a disciplina usa a regra do diagrama de caixa (já implementada) |
-| Teste Z para uma amostra | 🔵 | fácil; depende de desvio conhecido |
-| Teste t para uma amostra | 🔵 | fácil; **candidato forte para F3** |
-| Teste t para duas amostras / pareado | 🟡 | núcleo pronto (F1); tela em F3 |
-| Testes de uma e duas proporções | 🟡 | duas proporções pronto (F1); uma proporção é 🔵 |
+| Teste Z para uma amostra | ✅ F3 | σ conhecido; avisa se a amostra não é normal com n < 30 |
+| Teste t para uma amostra | ✅ F3 | t, ou Wilcoxon para a mediana se não normal e n < 30 |
+| Teste t para duas amostras / pareado | ✅ F3 | páginas Dois grupos e Antes × depois |
+| Testes de uma e duas proporções | ✅ F3 | uma: z ou binomial exata; duas: z ou Fisher |
 | Taxa de Poisson (uma e duas amostras) | 🔵 | |
-| Teste para uma e duas variâncias | 🟡 | teste F pronto (F1); tela em F3 |
-| Teste de igualdade de variâncias (Levene/Bartlett) | 🟡 | Levene pronto; Bartlett 🔵 |
+| Teste para uma e duas variâncias | ✅ F3 / 🔵 | duas variâncias (F + Levene) na página Dois grupos; uma variância 🔵 |
+| Teste de igualdade de variâncias (Levene/Bartlett) | ✅ F3 / 🔵 | Levene (mediana) ✅; Bartlett 🔵 |
 | Testes de equivalência | 🔵 | |
 
 ## Testes não paramétricos
 
 | Item do Minitab | Situação | Observação |
 |---|---|---|
-| Wilcoxon (pareado) | 🟡 | núcleo pronto (F1) |
-| Mann-Whitney | 🟡 | núcleo pronto (F1) |
-| Kruskal-Wallis + comparações | 🟡 | núcleo pronto (F1); post hoc com Bonferroni |
+| Wilcoxon (pareado e uma amostra) | ✅ F3 | escolhido pelos pré-requisitos |
+| Mann-Whitney | ✅ F3 | escolhido pelos pré-requisitos |
+| Kruskal-Wallis + comparações | ✅ F3 | post hoc Mann-Whitney com Bonferroni (aviso: fora da apostila) |
 | Teste de sinal | 🔵 | fácil |
 | Friedman, mediana de Mood | 🔵 | |
 
@@ -94,16 +94,16 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 
 | Item do Minitab | Situação | Observação |
 |---|---|---|
-| Teste exato de Fisher (2 × 2) | 🟡 | pronto no núcleo (F1) para proporções |
-| Qui-quadrado (independência e ajuste) | 🔵 | comum em cursos de estatística; prioridade média |
-| Tabulação de contagens / cruzadas | 🔵 | |
+| Teste exato de Fisher (2 × 2) | ✅ F3 | em Duas proporções e no qui-quadrado 2 × 2 com esperados pequenos |
+| Qui-quadrado (independência e ajuste) | ✅ F3 | Pearson (sem Yates) + razão de verossimilhança; critério de Cochran |
+| Tabulação de contagens / cruzadas | ✅ F3 (parcial) | tabela de contingência a partir de duas colunas |
 | Estatísticas tabuladas (Construtor de tabelas) | 🔵 | média/contagem por grupo |
 
 ## Regressão
 
 | Item do Minitab | Situação | Observação |
 |---|---|---|
-| Regressão linear simples (com R², coeficientes, previsão) | 🟡 | núcleo pronto (F1); tela em F3 |
+| Regressão linear simples (com R², coeficientes, previsão) | ✅ F3 | só com correlação significativa (forçável, com aviso); aviso de extrapolação |
 | Regressão linear múltipla | 🔵 | o próximo passo natural depois da simples |
 | Regressão polinomial | 🔵 | |
 | Regressão não linear, ortogonal, PLS, Poisson, logística, Cox | ⚪ | fora da disciplina |
@@ -113,9 +113,9 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 
 | Item do Minitab | Situação | Observação |
 |---|---|---|
-| ANOVA de 1 fator (tabela SQ/QM/F/p/R²) | 🟡 | núcleo pronto (F1); tela em F3 |
-| Tukey (comparações múltiplas) | 🟡 | núcleo pronto (F1); tela em F3 |
-| ANOVA de Welch (conferência) | 🟡 | pronto; tela em F3 |
+| ANOVA de 1 fator (tabela SQ/QM/F/p/R²) | ✅ F3 | página Três ou mais grupos |
+| Tukey (comparações múltiplas) | ✅ F3 | tabela + gráfico de ICs simultâneos |
+| ANOVA de Welch (conferência) | ✅ F3 | mostrada como conferência |
 | ANOVA de 2 fatores / modelo linear geral | 🔵 | prioridade média |
 | Modelos mistos, MANOVA | ⚪ | |
 
@@ -176,14 +176,10 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 | Macros, scripts, integração R/Python | ⚪ | a integração do statlab é o próprio código Python |
 | Execução de comandos de sessão (repetir análise) | 🔵 | equivalente: a página de descritivas com parâmetros; `exec` seria novo |
 
-## Decisões pendentes (dependem do usuário)
+## Decisões tomadas
 
-1. **Exportação PNG/SVG.** Kaleido v1 precisa de um Chrome. Opções: (a) instalar o Chromium com
-   `uv run plotly_get_chrome` (baixa ~150 MB) e habilitar PNG/SVG; (b) manter só HTML interativo.
-2. **Prioridade do backlog.** Sugestão para as próximas rodadas, nesta ordem:
-   1. F3: telas dos testes (t 1 amostra, t 2 amostras/pareado, proporções, variâncias, correlação, regressão
-      simples, ANOVA + Tukey, não paramétricos) — o núcleo já existe.
-   2. Testes simples que faltam: Z, t de 1 amostra, proporção de 1 amostra, qui-quadrado.
-   3. Regressão múltipla e ANOVA de 2 fatores.
-   4. F4 (assistente) e F5 (conclusões/relatório).
-   5. Depois, se houver demanda: DOE fatorial 2 níveis e cartas de controle.
+1. **Exportação:** só HTML interativo (16/11/2026). PNG pelo botão de câmera do Plotly no navegador.
+2. **Ordem do backlog:** F3 (telas dos testes) → testes simples que faltavam (Z, t e proporção de uma amostra,
+   qui-quadrado) → regressão múltipla e ANOVA de 2 fatores → F4/F5 → DOE e cartas de controle sob demanda.
+3. **Andamento (16/11/2026):** F3 concluída junto com os testes simples (t, Z e proporção de uma amostra,
+   qui-quadrado). Próximo: regressão múltipla e ANOVA de 2 fatores; depois F4 e F5.

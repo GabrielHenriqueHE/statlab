@@ -130,18 +130,3 @@ def test_html_autocontido_sem_cdn():
     conteudo = graficos.html(fig).decode("utf-8")
     assert "<html" in conteudo.lower()
     assert '<script src="http' not in conteudo  # nada carregado de fora (privacidade e uso offline)
-
-
-def test_png_disponivel_ou_erro_claro():
-    fig = graficos.barras(["a"], [1.0])
-    try:
-        dados = graficos.imagem(fig, "png")
-    except graficos.ErroExportacao as exc:
-        assert "Chrome" in str(exc)
-    else:
-        assert dados[:8] == b"\x89PNG\r\n\x1a\n"
-
-
-def test_formato_de_imagem_invalido():
-    with pytest.raises(graficos.ErroExportacao):
-        graficos.imagem(graficos.barras(["a"], [1.0]), "gif")

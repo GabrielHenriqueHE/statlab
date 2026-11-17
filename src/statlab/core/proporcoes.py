@@ -13,7 +13,7 @@ from scipy import stats
 from statlab.core.dados import ErroDeDados
 from statlab.core.formatacao import num, p_valor
 from statlab.core.nao_parametricos import validar_alternativa
-from statlab.core.resultados import ALPHA_PADRAO, Resultado
+from statlab.core.resultados import ALPHA_PADRAO, FALHA, OK, Resultado, Verificacao
 
 
 @dataclass(kw_only=True)
@@ -64,6 +64,15 @@ def analisar_proporcoes(
         "n·p ≥ 5 e n·q ≥ 5 (critério de muitos livros): " + ("atendido" if np_nq_ok else "NÃO atendido"),
     ]
 
+    verif = [
+        Verificacao(nome="n·p·q ≥ 5 (apostila)", status=OK if pq_ok else FALHA, detalhe=prereq[0]),
+        Verificacao(
+            nome="n·p ≥ 5 e n·q ≥ 5",
+            status=OK if np_nq_ok else FALHA,
+            detalhe=prereq[1] + ("" if (pq_ok and np_nq_ok) else " → teste exato de Fisher"),
+        ),
+    ]
+
     fisher = stats.fisher_exact([[x1, n1 - x1], [x2, n2 - x2]], alternative=scipy_alt)
 
     if pq_ok and np_nq_ok:
@@ -104,5 +113,6 @@ def analisar_proporcoes(
         p_fisher=p_fisher,
         alternativa=alternativa,
         prerequisitos=prereq,
+        verificacoes=verif,
         passos=passos,
     )

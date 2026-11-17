@@ -14,11 +14,11 @@ from scipy import stats
 from statsmodels.stats.oneway import anova_oneway
 
 from statlab.core.dados import ErroDeDados, amostra, exigir_minimo
-from statlab.core.descritiva import detectar_outliers, sem_extremos, texto_outliers
+from statlab.core.descritiva import detectar_outliers, sem_extremos, texto_outliers, verificacao_outliers
 from statlab.core.formatacao import num, p_valor
 from statlab.core.nao_parametricos import comparacoes_mann_whitney_bonferroni, kruskal_wallis
-from statlab.core.normalidade import shapiro_wilk
-from statlab.core.resultados import ALPHA_PADRAO, ParComparacao, Resultado
+from statlab.core.normalidade import shapiro_wilk, verificacao_normalidade
+from statlab.core.resultados import ALPHA_PADRAO, FALHA, OK, ParComparacao, Resultado, Verificacao
 from statlab.core.variancias import RAZAO_MAXIMA_ANOVA, razao_maior_menor
 
 
@@ -146,6 +146,7 @@ def analisar_grupos(
         raise ErroDeDados("Informe pelo menos 2 grupos.")
     prereq: list[str] = []
     avisos: list[str] = []
+    verif: list[Verificacao] = []
     limpos: dict[str, np.ndarray] = {}
     for nome, bruto in grupos.items():
         v, faltantes = amostra(bruto, nome)
@@ -154,6 +155,7 @@ def analisar_grupos(
         exigir_minimo(v, 3, nome)
         out = detectar_outliers(v)
         prereq.append(texto_outliers(nome, v, out))
+        verif.append(verificacao_outliers(nome, v, out))
         if out.tem_extremo:
             n_antes = len(v)
             v = sem_extremos(v, out)
@@ -162,14 +164,22 @@ def analisar_grupos(
         limpos[nome] = v
 
     normalidades = {nome: shapiro_wilk(v, alpha=alpha, tcl=True, nome=nome) for nome, v in limpos.items()}
-    for nr in normalidades.values():
+    for nome_g, nr in normalidades.items():
         prereq.append(nr.passos[0])
+        verif.append(verificacao_normalidade(nr, nome_g, "ANOVA não indicada; Kruskal-Wallis"))
     normal_ok = all(nr.atende for nr in normalidades.values())
     razao = razao_maior_menor(list(limpos.values()))
     var_ok = razao <= RAZAO_MAXIMA_ANOVA
-    prereq.append(
-        f"Variâncias: maior/menor = {num(razao)} → "
-        + (f"dentro do critério (≤ {RAZAO_MAXIMA_ANOVA:g}×)." if var_ok else f"acima de {RAZAO_MAXIMA_ANOVA:g}×.")
+    texto_razao = f"Variâncias: maior/menor = {num(razao)} → " + (
+        f"dentro do critério (≤ {RAZAO_MAXIMA_ANOVA:g}×)." if var_ok else f"acima de {RAZAO_MAXIMA_ANOVA:g}×."
+    )
+    prereq.append(texto_razao)
+    verif.append(
+        Verificacao(
+            nome="Variâncias semelhantes (razão ≤ 9)",
+            status=OK if var_ok else FALHA,
+            detalhe=texto_razao + ("" if var_ok else " → Kruskal-Wallis"),
+        )
     )
 
     if normal_ok and var_ok:
@@ -212,6 +222,7 @@ def analisar_grupos(
             )
 
     res.prerequisitos = prereq + res.prerequisitos
+    res.verificacoes = verif
     res.avisos = avisos + res.avisos
     res.n = sum(len(v) for v in limpos.values())
     return res

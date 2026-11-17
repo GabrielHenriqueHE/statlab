@@ -276,3 +276,39 @@ def matriz_dispersao(tabela: pd.DataFrame, colunas: Sequence[str], *, titulo: st
         raise ErroDeDados("A matriz de dispersão precisa de pelo menos 2 linhas completas.")
     fig = go.Figure(go.Splom(dimensions=[dict(label=c, values=sub[c].to_numpy()) for c in cols], marker=dict(size=5)))
     return _aplicar_tema(fig, titulo)
+
+
+def tukey_intervalos(comparacoes: Sequence[object], *, titulo: str = "ICs simultâneos de 95% de Tukey") -> go.Figure:
+    """Diferença de médias de cada par com o IC de Tukey. Intervalo que não contém o zero = diferença significativa."""
+    pares = [c for c in comparacoes if getattr(c, "ic", None) is not None and getattr(c, "diferenca", None) is not None]
+    if not pares:
+        raise ErroDeDados("Não há intervalos de Tukey para mostrar.")
+    rotulos = [f"{c.grupo_a} − {c.grupo_b}" for c in pares]
+    centros = [c.diferenca for c in pares]
+    fig = go.Figure(
+        go.Scatter(
+            x=centros,
+            y=rotulos,
+            mode="markers",
+            marker=dict(size=9, color="#1f77b4"),
+            error_x=dict(
+                type="data",
+                symmetric=False,
+                array=[c.ic[1] - c.diferenca for c in pares],
+                arrayminus=[c.diferenca - c.ic[0] for c in pares],
+            ),
+            name="Diferença",
+        )
+    )
+    fig.add_vline(x=0, line_dash="dash", line_color="green")
+    fig.update_yaxes(autorange="reversed")
+    fig.add_annotation(
+        text="Se um intervalo não contém o zero, as médias correspondentes são significativamente diferentes.",
+        xref="paper",
+        yref="paper",
+        x=0,
+        y=-0.18,
+        showarrow=False,
+        font=dict(size=11),
+    )
+    return _aplicar_tema(fig, titulo, "Diferença de médias", None)

@@ -10,6 +10,19 @@ from dataclasses import dataclass, field
 
 ALPHA_PADRAO = 0.05
 
+OK = "ok"  # ✓ pré-requisito atendido
+ATENCAO = "atencao"  # ⚠ atendido com ressalva (outlier suave, TCL, variâncias diferentes → Welch)
+FALHA = "falha"  # ✗ violado: o teste paramétrico não é usado
+
+
+@dataclass(frozen=True)
+class Verificacao:
+    """Um pré-requisito verificado, para os cartões ✓/⚠/✗ da interface."""
+
+    nome: str
+    status: str  # OK, ATENCAO ou FALHA
+    detalhe: str
+
 
 @dataclass(frozen=True)
 class ParComparacao:
@@ -49,6 +62,7 @@ class Resultado:
     ic: tuple[float, float] | None = None
     ic_descricao: str = ""
     prerequisitos: list[str] = field(default_factory=list)
+    verificacoes: list[Verificacao] = field(default_factory=list)
     passos: list[str] = field(default_factory=list)
     avisos: list[str] = field(default_factory=list)
 

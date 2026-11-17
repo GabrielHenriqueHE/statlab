@@ -6,10 +6,25 @@ from statlab.ui import estado
 
 st.set_page_config(page_title="statlab", layout="wide")
 
-paginas = [
-    st.Page("paginas/dados.py", title="Dados", default=True),
-    st.Page("paginas/descritiva.py", title="Estatísticas descritivas"),
-    st.Page("paginas/graficos.py", title="Gráficos"),
-]
+paginas = {
+    "Dados": [
+        st.Page("paginas/dados.py", title="Dados", default=True),
+        st.Page("paginas/descritiva.py", title="Estatísticas descritivas"),
+        st.Page("paginas/graficos.py", title="Gráficos"),
+    ],
+    "Testes de hipótese": [
+        st.Page("paginas/normalidade.py", title="Normalidade"),
+        st.Page("paginas/uma_amostra.py", title="Uma amostra (t, Z, proporção)"),
+        st.Page("paginas/dois_grupos.py", title="Dois grupos independentes"),
+        st.Page("paginas/pareado.py", title="Antes × depois (pareado)"),
+        st.Page("paginas/anova.py", title="Três ou mais grupos (ANOVA)"),
+        st.Page("paginas/proporcoes.py", title="Duas proporções"),
+        st.Page("paginas/qui_quadrado.py", title="Qui-quadrado"),
+    ],
+    "Relações": [
+        st.Page("paginas/correlacao.py", title="Correlação e regressão"),
+    ],
+}
 estado.seletor_lateral()
+estado.seletor_alpha()
 st.navigation(paginas).run()

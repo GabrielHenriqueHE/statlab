@@ -12,7 +12,13 @@ import numpy as np
 from scipy import stats
 
 from statlab.core.dados import amostra, exigir_minimo, exigir_variacao, pares
-from statlab.core.descritiva import descrever, detectar_outliers, sem_extremos, texto_outliers
+from statlab.core.descritiva import (
+    descrever,
+    detectar_outliers,
+    sem_extremos,
+    texto_outliers,
+    verificacao_outliers,
+)
 from statlab.core.formatacao import num, p_valor
 from statlab.core.nao_parametricos import (
     TesteNaoParametrico,
@@ -20,12 +26,12 @@ from statlab.core.nao_parametricos import (
     validar_alternativa,
     wilcoxon_pareado,
 )
-from statlab.core.normalidade import shapiro_wilk
-from statlab.core.resultados import ALPHA_PADRAO, Resultado
+from statlab.core.normalidade import Normalidade, shapiro_wilk, verificacao_normalidade
+from statlab.core.resultados import ALPHA_PADRAO, ATENCAO, OK, Resultado, Verificacao
 from statlab.core.variancias import teste_f
 
 
-def _p_t(t: float, gl: float, alternativa: str) -> float:
+def p_t_student(t: float, gl: float, alternativa: str) -> float:
     validar_alternativa(alternativa)
     if alternativa == "bilateral":
         return float(2 * stats.t.sf(abs(t), gl))
@@ -66,7 +72,7 @@ def t_pareado(
     ep = sd / np.sqrt(n)
     t = dbar / ep
     gl = n - 1
-    p = _p_t(t, gl, alternativa)
+    p = p_t_student(t, gl, alternativa)
     tc = float(stats.t.ppf(0.975, gl))
     ic = (dbar - tc * ep, dbar + tc * ep)
     passos = [
@@ -126,7 +132,7 @@ def t_independente(
         extra = [f"EP = √(s²₁/n₁ + s²₂/n₂) = {num(ep, 3)}; gl (Welch-Satterthwaite) = {num(gl, 1)}"]
 
     t = diff / ep
-    p = _p_t(t, gl, alternativa)
+    p = p_t_student(t, gl, alternativa)
     tc = float(stats.t.ppf(0.975, gl))
     ic = (diff - tc * ep, diff + tc * ep)
     passos = (
@@ -190,6 +196,7 @@ def analisar_antes_depois(
     d = a - b
     out = detectar_outliers(d)
     prereq.append(texto_outliers("diferenças d", d, out))
+    verif = [verificacao_outliers("diferenças d", d, out)]
     if out.tem_extremo:
         n_antes = len(a)
         keep = ~out.extremo
@@ -203,6 +210,7 @@ def analisar_antes_depois(
     res, normal_ok = _decidir_pareado(a, b, alpha, alternativa)
     norm = shapiro_wilk(d, alpha=alpha, tcl=True, nome="diferenças")
     prereq.append(norm.passos[0])
+    verif.append(verificacao_normalidade(norm, "diferenças d", "Wilcoxon (não paramétrico)"))
     prereq.append(
         "Normalidade das diferenças: " + ("atendida → t pareado." if normal_ok else "não atendida (n < 30) → Wilcoxon.")
     )
@@ -225,6 +233,7 @@ def analisar_antes_depois(
             res.avisos.append("Poucos pares restam sem o outlier suave; a análise sem ele não foi feita.")
 
     res.prerequisitos = prereq + res.prerequisitos
+    res.verificacoes = verif
     res.avisos = avisos + res.avisos
     return res
 
@@ -250,10 +259,12 @@ def analisar_dois_grupos(
 
     desc_txt = []
     outs = {}
+    verif: list[Verificacao] = []
     for nome, v in ((nome_a, a), (nome_b, b)):
         out = detectar_outliers(v)
         outs[nome] = out
         prereq.append(texto_outliers(nome, v, out))
+        verif.append(verificacao_outliers(nome, v, out))
         desc_txt.append(_linha_descritiva(nome, v))
     if outs[nome_a].tem_extremo or outs[nome_b].tem_extremo:
         n_antes = (len(a), len(b))
@@ -266,7 +277,18 @@ def analisar_dois_grupos(
         exigir_minimo(a, 2, nome_a)
         exigir_minimo(b, 2, nome_b)
 
-    res, normal_ok = _decidir_grupos(a, b, nome_a, nome_b, alpha, alternativa)
+    res, normal_ok, normalidades = _decidir_grupos(a, b, nome_a, nome_b, alpha, alternativa)
+    for nome, nr in zip((nome_a, nome_b), normalidades, strict=True):
+        verif.append(verificacao_normalidade(nr, nome, "Mann-Whitney (não paramétrico)"))
+    if isinstance(res, TesteT) and res.variancias_iguais is not None:
+        detalhe_var = res.prerequisitos[0].removeprefix("Variâncias: ") if res.prerequisitos else ""
+        verif.append(
+            Verificacao(
+                nome="Igualdade de variâncias (teste F)",
+                status=OK if res.variancias_iguais else ATENCAO,
+                detalhe=detalhe_var,
+            )
+        )
     prereq.append(
         "Normalidade e n ≥ 30: "
         + ("atendidas → teste t." if normal_ok else "não atendidas em algum grupo → Mann-Whitney.")
@@ -279,7 +301,7 @@ def analisar_dois_grupos(
     if suave_a.any() or suave_b.any():
         a2, b2 = a[~suave_a], b[~suave_b]
         if len(a2) >= 2 and len(b2) >= 2:
-            sub, _ = _decidir_grupos(a2, b2, nome_a, nome_b, alpha, alternativa)
+            sub, _, _ = _decidir_grupos(a2, b2, nome_a, nome_b, alpha, alternativa)
             mudou = sub.significativo != res.significativo
             res.avisos.append(
                 f"Sem os outliers suaves ({nome_a} n = {len(a2)}; {nome_b} n = {len(b2)}): {sub.nome}, p "
@@ -288,6 +310,7 @@ def analisar_dois_grupos(
             )
 
     res.prerequisitos = prereq + res.prerequisitos
+    res.verificacoes = verif
     res.avisos = avisos + res.avisos
     return res
 
@@ -307,11 +330,13 @@ def _decidir_grupos(
     nome_b: str,
     alpha: float,
     alternativa: str,
-) -> tuple[Resultado, bool]:
+) -> tuple[Resultado, bool, tuple[Normalidade, Normalidade]]:
+    """Escolhe t (ambos normais ou n ≥ 30) ou Mann-Whitney. Devolve (resultado, normal_ok, normalidades)."""
     na = shapiro_wilk(a, alpha=alpha, tcl=True, nome=nome_a)
     nb = shapiro_wilk(b, alpha=alpha, tcl=True, nome=nome_b)
     if na.atende and nb.atende:
-        return t_independente(a, b, alpha=alpha, alternativa=alternativa, nome_a=nome_a, nome_b=nome_b), True
+        t = t_independente(a, b, alpha=alpha, alternativa=alternativa, nome_a=nome_a, nome_b=nome_b)
+        return t, True, (na, nb)
     mw: TesteNaoParametrico = mann_whitney(a, b, alpha=alpha, alternativa=alternativa, nome_a=nome_a, nome_b=nome_b)
     mw.passos = na.passos + nb.passos + mw.passos
-    return mw, False
+    return mw, False, (na, nb)

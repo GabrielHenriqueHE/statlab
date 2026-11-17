@@ -60,3 +60,22 @@ def seletor_lateral() -> None:
     atual = ativa()[0]  # type: ignore[index]
     escolha = st.sidebar.selectbox("Worksheet ativa", nomes, index=nomes.index(atual), key=SELETOR)
     st.session_state[ATIVA] = escolha
+
+
+ALPHA = "alpha_global"
+ALPHAS = (0.05, 0.01)
+
+
+def alpha() -> float:
+    """Nível de significância escolhido na barra lateral (padrão 0,05)."""
+    valor = st.session_state.get(ALPHA, ALPHAS[0])
+    return float(valor) if valor in ALPHAS else ALPHAS[0]
+
+
+def seletor_alpha() -> None:
+    st.sidebar.radio(
+        "Nível de significância (α)",
+        ALPHAS,
+        format_func=lambda a: f"{a:.2f}".replace(".", ",") + (" (95% de confiança)" if a == 0.05 else " (99%)"),
+        key=ALPHA,
+    )

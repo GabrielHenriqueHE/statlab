@@ -152,12 +152,4 @@ if fig is not None:
         mime="text/html",
         key="baixar_html",
     )
-    if st.button("Gerar PNG", key="gerar_png"):
-        try:
-            png = graficos.imagem(fig, "png")
-        except graficos.ErroExportacao as exc:
-            st.warning(str(exc))
-        else:
-            st.download_button(
-                "Baixar gráfico (PNG)", data=png, file_name=f"{titulo_arquivo}.png", mime="image/png", key="baixar_png"
-            )
+    st.caption("Para uma imagem PNG, use o ícone de câmera no canto do gráfico.")

@@ -3,10 +3,12 @@
 App de análise estatística didática em pt-BR (disciplina Probabilidade e Estatística). Núcleo estatístico puro e testado + UI Streamlit. **Correção estatística vem antes de tudo.**
 
 ## Estrutura
-- `src/statlab/core/` — cálculos puros. **Proibido importar `streamlit`** aqui. Cada função devolve um dataclass de `resultados.py` com estatística, gl, p, IC, n, `avisos` e `passos` (cálculo).
+- `src/statlab/core/` — cálculos puros. **Proibido importar `streamlit`** aqui. Cada função devolve um dataclass de `resultados.py` com estatística, gl, p, IC, n, `avisos`, `passos` (cálculo) e `verificacoes` (pré-requisitos estruturados: `OK` ✅, `ATENCAO` ⚠️, `FALHA` ❌ — a UI desenha os cartões só a partir delas, nunca lendo texto).
 - `src/statlab/ui/` — app Streamlit (`app.py`) e páginas em `ui/paginas/` (Dados, Estatísticas descritivas, Gráficos). Só formatam e exibem; nenhuma regra estatística mora aqui. Estado da sessão em `ui/estado.py` (worksheets como no Minitab).
-- `src/statlab/graficos/` — figuras Plotly puras (sem Streamlit) e exportação (`exportar.py`: HTML sempre; PNG/SVG exigem Kaleido v1 + Chrome, hoje ausentes).
+- `src/statlab/graficos/` — figuras Plotly puras (sem Streamlit) e exportação (`exportar.py`): **somente HTML interativo**, por decisão do usuário (sem Kaleido/Chrome).
 - `core/importacao.py` (CSV/XLSX/texto colado) e `core/tabela.py` (empilhar, desempilhar, pares completos) — entrada de dados, sem regras estatísticas.
+- `core/uma_amostra.py` (t/Wilcoxon, Z, uma proporção) e `core/qui_quadrado.py` (independência, aderência) — fora da apostila; avisam isso. IC exibido é sempre o bilateral de 95%, mesmo com H₁ unilateral.
+- `ui/componentes.py` — peças comuns das páginas de teste (hipótese alternativa, cartões, resultado, cálculo, escolha de grupos em colunas ou empilhados). α global em `estado.alpha()` (barra lateral: 0,05 ou 0,01).
 - `src/statlab/relatorio/` — exportação HTML/Markdown (fase F5).
 - `tests/` — pytest. `tests/fixtures/` — dados de referência.
 - `docs/reference/` — material da disciplina (PDF revisado, gerador, gabarito 2026). Fonte de verdade para regras e valores.
@@ -67,4 +69,4 @@ Não commitar sem pedido explícito do usuário. Mensagens de commit terminam co
 ## Anderson-Darling e Minitab (F2)
 - O teste de normalidade padrão do Minitab é Anderson-Darling. `p_anderson_darling` usa a aproximação de Stephens (D'Agostino & Stephens, 1986), validada contra `statsmodels.normal_ad` e contra o relatório da brochure (A² ≈ 0,2524, n = 50, p ≈ 0,724).
 - Assimetria e curtose são as ajustadas (G1, G2) do Minitab.
-- Exportação de PNG: pendente de decisão do usuário (instalar Chromium com `plotly_get_chrome` ou manter só HTML).
+- Exportação: decidido **só HTML** (16/11/2026). PNG fica pelo botão de câmera do próprio Plotly no navegador.

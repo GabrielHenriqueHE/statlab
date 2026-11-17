@@ -9,7 +9,7 @@ from scipy import stats
 
 from statlab.core.dados import exigir_minimo, exigir_variacao
 from statlab.core.formatacao import p_valor
-from statlab.core.resultados import ALPHA_PADRAO, Resultado
+from statlab.core.resultados import ALPHA_PADRAO, ATENCAO, FALHA, OK, Resultado, Verificacao
 
 N_MINIMO_TCL = 30
 
@@ -125,3 +125,17 @@ def anderson_darling(v: np.ndarray, *, alpha: float = ALPHA_PADRAO, nome: str = 
         pelo_tcl=False,
         passos=[f"Anderson-Darling ({nome}): A² = {a2:.4f}; p {p_valor(p)} → {conc}"],
     )
+
+
+def verificacao_normalidade(norm: Normalidade, nome: str, consequencia_falha: str = "") -> Verificacao:
+    """✓ normal; ⚠ não normal mas n ≥ 30 (TCL); ✗ não normal (``consequencia_falha`` diz o que muda)."""
+    if norm.normal:
+        status = OK
+    elif norm.pelo_tcl:
+        status = ATENCAO
+    else:
+        status = FALHA
+    detalhe = norm.passos[0]
+    if status == FALHA and consequencia_falha:
+        detalhe += f" → {consequencia_falha}"
+    return Verificacao(nome=f"Normalidade — {nome}", status=status, detalhe=detalhe)

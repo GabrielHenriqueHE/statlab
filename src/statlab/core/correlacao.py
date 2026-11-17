@@ -16,9 +16,9 @@ import numpy as np
 from scipy import stats
 
 from statlab.core.dados import ErroDeDados, exigir_minimo, exigir_variacao, pares
-from statlab.core.descritiva import detectar_outliers, texto_outliers
+from statlab.core.descritiva import detectar_outliers, texto_outliers, verificacao_outliers
 from statlab.core.formatacao import num, p_valor
-from statlab.core.normalidade import shapiro_wilk
+from statlab.core.normalidade import shapiro_wilk, verificacao_normalidade
 from statlab.core.resultados import ALPHA_PADRAO, Resultado
 
 N_MINIMO_PARES = 3
@@ -118,6 +118,7 @@ def analisar_correlacao(
     ox, oy = detectar_outliers(xs), detectar_outliers(ys)
     prereq.append(texto_outliers(nome_x, xs, ox))
     prereq.append(texto_outliers(nome_y, ys, oy))
+    verif = [verificacao_outliers(nome_x, xs, ox), verificacao_outliers(nome_y, ys, oy)]
     extremo = ox.extremo | oy.extremo
     n_extremos = int(extremo.sum())
     if n_extremos:
@@ -136,6 +137,8 @@ def analisar_correlacao(
     ny = shapiro_wilk(ys, alpha=alpha, tcl=False, nome=nome_y)
     prereq.append(nx.passos[0])
     prereq.append(ny.passos[0])
+    verif.append(verificacao_normalidade(nx, nome_x, "Pearson não indicado; decisão por Spearman"))
+    verif.append(verificacao_normalidade(ny, nome_y, "Pearson não indicado; decisão por Spearman"))
     normal = nx.normal and ny.normal
 
     # 3) cálculo
@@ -210,6 +213,7 @@ def analisar_correlacao(
         x_usado=xs,
         y_usado=ys,
         prerequisitos=prereq,
+        verificacoes=verif,
         passos=passos,
         avisos=avisos,
     )

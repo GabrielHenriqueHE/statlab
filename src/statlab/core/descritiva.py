@@ -12,6 +12,7 @@ import numpy as np
 from scipy import stats
 
 from statlab.core.dados import ErroDeDados
+from statlab.core.resultados import ATENCAO, OK, Verificacao
 
 METODO_QUARTIS_PADRAO = "linear"  # = Excel QUARTIL.INC
 METODO_QUARTIS_MINITAB = "weibull"
@@ -159,3 +160,9 @@ def resumo_estatistico(
         ic_media=(float(media - tc * ep), float(media + tc * ep)),
         confianca=confianca,
     )
+
+
+def verificacao_outliers(nome: str, v: np.ndarray, out: Outliers) -> Verificacao:
+    """✓ sem outliers; ⚠ com outlier suave (análise com e sem) ou extremo (excluído)."""
+    status = ATENCAO if (out.tem_suave or out.tem_extremo) else OK
+    return Verificacao(nome=f"Outliers — {nome}", status=status, detalhe=texto_outliers(nome, v, out))

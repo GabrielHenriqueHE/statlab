@@ -3,17 +3,13 @@
 Nenhum navegador é aberto: o Streamlit executa o script da página e permite acionar widgets.
 """
 
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import pytest
 from streamlit.testing.v1 import AppTest
 
 from statlab.ui import estado
-
-PAGINAS = Path(__file__).resolve().parents[1] / "src" / "statlab" / "ui" / "paginas"
-TIMEOUT = 60
+from tests.ui_util import app, sem_erros
 
 
 def _df() -> pd.DataFrame:
@@ -29,20 +25,10 @@ def _df() -> pd.DataFrame:
 
 
 def _app(pagina: str, planilhas: dict[str, pd.DataFrame] | None = None) -> AppTest:
-    at = AppTest.from_file(str(PAGINAS / pagina), default_timeout=TIMEOUT)
-    if planilhas is None:
-        planilhas = {"Teste": _df()}
-    at.session_state[estado.PLANILHAS] = planilhas
-    if planilhas:
-        at.session_state[estado.ATIVA] = next(iter(planilhas))
-    return at.run()
+    return app(pagina, {"Teste": _df()} if planilhas is None else planilhas)
 
 
-def _sem_erros(at: AppTest, esperando_mensagem: bool = False) -> None:
-    """Nenhuma exceção não tratada. Sem ``esperando_mensagem``, também nenhum ``st.error``."""
-    assert [e.value for e in at.exception] == []
-    if not esperando_mensagem:
-        assert [e.value for e in at.error] == []
+_sem_erros = sem_erros
 
 
 # --------------------------------------------------------------------------- Dados
