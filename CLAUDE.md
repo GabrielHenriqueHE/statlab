@@ -31,18 +31,20 @@ sem analisar nada.
 - `core/resultados.py` — `Resultado` e subclasses. `verificacoes` (`OK` ✅, `ATENCAO` ⚠️, `FALHA` ❌)
   é **diagnóstico informativo**, nunca gatilho de decisão; a UI desenha os cartões só a partir delas,
   nunca lendo texto. `nome` é o comando que o usuário rodou.
-- `core/sessao.py` — o registro da saída acumulada (blocos de título, tabela, texto e figura). Puro.
+- `relatorio/relatorio.py` — o registro da saída da sessão: `ItemRelatorio` é um bloco (título,
+  tabelas, linhas de resultado, diagnósticos, notas, cálculo, figuras) e `item_de` monta um a partir
+  de um `Resultado`. Também exporta a sessão em Markdown e HTML (autocontido, sem CDN). Puro.
 - `src/statlab/ui/` — app Streamlit. `app.py` monta o layout (worksheet + janela de sessão);
-  `ui/menu.py` é a barra de menus; `ui/comandos/` tem um módulo por comando (diálogo de opções →
-  chama o núcleo → grava na sessão). Nenhuma regra estatística mora aqui. Estado em `ui/estado.py`
-  (worksheets como no Minitab).
+  `ui/menu.py` é a barra de menus; `ui/sessao.py` desenha a janela de sessão; `ui/comandos/` tem um
+  módulo por comando (diálogo de opções → chama o núcleo → grava na sessão). Nenhuma regra
+  estatística mora aqui. Estado em `ui/estado.py` (worksheets como no Minitab, e qual diálogo está
+  aberto — o comando aberto precisa ficar no estado, senão mexer numa opção o fecharia).
 - `src/statlab/graficos/` — figuras Plotly puras (sem Streamlit) e exportação (`exportar.py`):
   **somente HTML interativo**, por decisão do usuário (sem Kaleido/Chrome).
 - `core/importacao.py` (CSV/XLSX/texto colado) e `core/tabela.py` (empilhar, desempilhar, recodificar,
   pares completos) — entrada e arrumação de dados, sem regras estatísticas.
 - `core/assistente.py` — só a árvore de perguntas (`decidir`), que devolve **o comando e as opções a
   marcar**. Não toca nos dados e não roda análise.
-- `relatorio/relatorio.py` — exportação da sessão em Markdown/HTML (HTML autocontido, sem CDN).
 - `tests/` — pytest. `tests/fixtures/` — dados de referência.
 - `docs/reference/` — material da disciplina (PDF revisado, gabarito 2026) e os guias do Minitab.
   Fonte de verdade para valores. `docs/funcionalidades_minitab.md` é o mapa de menus.
