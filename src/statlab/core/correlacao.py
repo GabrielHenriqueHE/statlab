@@ -173,7 +173,7 @@ def analisar_correlacao(
     if suave.any():
         m = ~suave
         n_sem = int(m.sum())
-        if n_sem >= N_MINIMO_PARES:
+        if n_sem >= N_MINIMO_PARES and float(np.ptp(xs[m])) > 0 and float(np.ptp(ys[m])) > 0:
             r2_, p2_ = pearson(xs[m], ys[m])
             rs2, ps2 = spearman(xs[m], ys[m])
             r_sem, p_sem = (r2_, p2_) if normal else (rs2, ps2)
@@ -184,6 +184,11 @@ def analisar_correlacao(
                 "se for dado real, relate as duas análises."
                 if muda
                 else "A conclusão se mantém com ou sem o outlier suave."
+            )
+        elif n_sem >= N_MINIMO_PARES:
+            n_sem = None
+            avisos.append(
+                "Sem o(s) outlier(s) suave(s), uma das variáveis fica sem variação; a análise sem ele não foi feita."
             )
         else:
             avisos.append("Poucos pares restam sem o outlier suave; a análise sem ele não foi feita.")

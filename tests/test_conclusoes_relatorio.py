@@ -111,8 +111,7 @@ def test_gabarito_ex3_nao_significativo():
     g = gabarito()["ex3"]
     texto = concluir(analisar_dois_grupos(g["a"], g["b"], nome_a="Equipe A", nome_b="Equipe B"), variavel="tempo")
     assert texto == (
-        "Não há diferença significativa entre as médias de tempo de Equipe A e Equipe B "
-        "(t = 1,47; gl = 17; p = 0,159)."
+        "Não há diferença significativa entre as médias de tempo de Equipe A e Equipe B (t = 1,47; gl = 17; p = 0,159)."
     )
 
 

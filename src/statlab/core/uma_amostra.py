@@ -186,8 +186,13 @@ def analisar_uma_amostra(
         return wilcoxon_uma_amostra(x, mu0, alpha=alpha, alternativa=alternativa)
 
     res = _rodar(v)
+    sub = None
     if suave.any() and int((~suave).sum()) >= 3:
-        sub = _rodar(v[~suave])
+        try:
+            sub = _rodar(v[~suave])
+        except ErroDeDados:
+            avisos.append("Sem o(s) outlier(s) suave(s), a amostra fica sem variação; a análise sem ele não foi feita.")
+    if sub is not None:
         mudou = sub.significativo != res.significativo
         avisos.append(
             f"Sem o(s) outlier(s) suave(s) (n = {int((~suave).sum())}): p {p_valor(sub.p)} → "

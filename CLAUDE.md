@@ -12,6 +12,7 @@ App de análise estatística didática em pt-BR (disciplina Probabilidade e Esta
 - `core/assistente.py` — F4: árvore da Tabela 2 (`decidir`) e análise com explicação do caminho (`analisar` + `caminho`). Testado com os casos da apostila e do gabarito (cada um chega ao teste que o material escolheu).
 - `core/conclusoes.py` — F5: `concluir(res, variavel=...)` escreve a conclusão no padrão da seção 10 da apostila (texto conferido contra os exemplos resolvidos). Nunca afirmar H₀ ("as médias são iguais").
 - `relatorio/relatorio.py` — itens do relatório (análise, pré-requisitos, resultado, conclusão, avisos, cálculo, gráficos) e exportação Markdown/HTML (HTML autocontido, sem CDN).
+- `pratica/` — F6: `gerador.py` é cópia de `docs/reference/gerador_exercicios.py` com mudanças mínimas (registra `extra["teste"]`, `extra["brutos"]`, `extra["alternativa"]`; o sorteio é idêntico). `conferir` compara a escolha do gerador com a do statlab; testes garantem concordância (semente 2026 e outras).
 - `ui/componentes.py` — peças comuns das páginas de teste (hipótese alternativa, cartões, resultado, cálculo, escolha de grupos em colunas ou empilhados). α global em `estado.alpha()` (barra lateral: 0,05 ou 0,01).
 - `src/statlab/relatorio/` — exportação HTML/Markdown (fase F5).
 - `tests/` — pytest. `tests/fixtures/` — dados de referência.
@@ -48,6 +49,7 @@ App de análise estatística didática em pt-BR (disciplina Probabilidade e Esta
 Vírgula decimal, ponto de milhar (`1.452,78`); p: `p < 0,001` ou `p = 0,047`; nunca mostrar `nan`/`inf` sem explicação.
 
 ## Robustez
+- A análise "sem outliers suaves" é complementar: se não puder ser calculada (ex.: variável fica constante), vira aviso — nunca derruba a análise principal (bug encontrado na F6, semente 11 do gerador).
 - Dados ruins (coluna constante, n < 3, faltantes, grupo vazio, texto em coluna numérica) devolvem erro de domínio legível (`ErroDeDados` em `core/`), nunca traceback na UI.
 - Divergência entre o código e os valores do PDF/gabarito ⇒ **parar e reportar**. Nunca ajustar o teste para bater com um número.
 

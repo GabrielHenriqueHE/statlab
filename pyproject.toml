@@ -44,3 +44,7 @@ src = ["src", "tests"]
 select = ["E", "F", "W", "I", "B", "UP", "N"]
 # ErroDeDados é nome de domínio em português (plano do projeto); não seguir o sufixo "Error".
 ignore = ["N818"]
+
+[tool.ruff.lint.per-file-ignores]
+# cópia do gerador da disciplina (docs/reference): mantida próxima do original para facilitar a comparação
+"src/statlab/pratica/gerador.py" = ["B905", "E501", "N806"]

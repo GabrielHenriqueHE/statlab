@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy import stats
 
-from statlab.core.dados import amostra, exigir_minimo, exigir_variacao, pares
+from statlab.core.dados import ErroDeDados, amostra, exigir_minimo, exigir_variacao, pares
 from statlab.core.descritiva import (
     descrever,
     detectar_outliers,
@@ -218,8 +218,14 @@ def analisar_antes_depois(
 
     if out.tem_suave:
         m = ~out.suave
-        if int(m.sum()) >= 2:
-            sub, _ = _decidir_pareado(a[m], b[m], alpha, alternativa)
+        try:
+            sub, _ = _decidir_pareado(a[m], b[m], alpha, alternativa) if int(m.sum()) >= 3 else (None, None)
+        except ErroDeDados:
+            sub = None
+            res.avisos.append(
+                "Sem o(s) outlier(s) suave(s), as diferenças ficam sem variação; a análise sem ele não foi feita."
+            )
+        if sub is not None:
             mudou = sub.significativo != res.significativo
             res.avisos.append(
                 f"Sem o(s) outlier(s) suave(s) (n = {int(m.sum())}): {sub.nome}, p {p_valor(sub.p)} → "
@@ -229,7 +235,7 @@ def analisar_antes_depois(
                     else "a conclusão se mantém."
                 )
             )
-        else:
+        elif int(m.sum()) < 3:
             res.avisos.append("Poucos pares restam sem o outlier suave; a análise sem ele não foi feita.")
 
     res.prerequisitos = prereq + res.prerequisitos
@@ -300,8 +306,12 @@ def analisar_dois_grupos(
     suave_b = detectar_outliers(b).suave
     if suave_a.any() or suave_b.any():
         a2, b2 = a[~suave_a], b[~suave_b]
-        if len(a2) >= 2 and len(b2) >= 2:
-            sub, _, _ = _decidir_grupos(a2, b2, nome_a, nome_b, alpha, alternativa)
+        try:
+            sub = _decidir_grupos(a2, b2, nome_a, nome_b, alpha, alternativa)[0] if min(len(a2), len(b2)) >= 3 else None
+        except ErroDeDados:
+            sub = None
+            res.avisos.append("Sem os outliers suaves, um grupo fica sem variação; a análise sem eles não foi feita.")
+        if sub is not None:
             mudou = sub.significativo != res.significativo
             res.avisos.append(
                 f"Sem os outliers suaves ({nome_a} n = {len(a2)}; {nome_b} n = {len(b2)}): {sub.nome}, p "
