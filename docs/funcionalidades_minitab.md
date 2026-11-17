@@ -31,7 +31,7 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 | Calculadora (fórmulas em colunas) | 🔵 | atribuir fórmula a coluna; útil, complexidade média |
 | Datas/horas como tipo de dado | 🔵 | hoje o eixo temporal aceita rótulos de texto |
 | Salvar/abrir projeto `.MPJ` | ⚪ | equivalente seria salvar a sessão; não é prioridade |
-| Recodificar valores | 🔵 | simples; útil para rótulos de centros |
+| Recodificar valores | ✅ | aba Recodificar (Dados): grava em coluna nova; numérica se todos os novos valores forem números |
 
 ## Gráficos (menu Gráficos e Análise gráfica)
 
@@ -68,16 +68,17 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 | Assimetria e curtose | ✅ F2 | G1 e G2 ajustadas, como no Minitab |
 | Teste de normalidade Anderson-Darling | ✅ F2 | padrão do Minitab; p por Stephens (validado pela brochure) |
 | Teste de normalidade Shapiro-Wilk | ✅ F3 | página Normalidade, ao lado do Anderson-Darling (aviso se discordarem) |
+| Teste de normalidade Ryan-Joiner | ⚪ | não implementado: sem referência verificável para o p (nota no README) |
 | Correlação (Pearson e Spearman) | ✅ F3 | página Correlação e regressão; decisão automática pela normalidade |
-| Covariância | 🔵 | trivial; falta tela |
+| Covariância | ✅ | Estatísticas descritivas, com 2+ variáveis (n − 1; pares completos por par) |
 | Teste de outlier (Grubbs) | 🔵 | a disciplina usa a regra do diagrama de caixa (já implementada) |
 | Teste Z para uma amostra | ✅ F3 | σ conhecido; avisa se a amostra não é normal com n < 30 |
 | Teste t para uma amostra | ✅ F3 | t, ou Wilcoxon para a mediana se não normal e n < 30 |
 | Teste t para duas amostras / pareado | ✅ F3 | páginas Dois grupos e Antes × depois |
 | Testes de uma e duas proporções | ✅ F3 | uma: z ou binomial exata; duas: z ou Fisher |
 | Taxa de Poisson (uma e duas amostras) | 🔵 | |
-| Teste para uma e duas variâncias | ✅ F3 / 🔵 | duas variâncias (F + Levene) na página Dois grupos; uma variância 🔵 |
-| Teste de igualdade de variâncias (Levene/Bartlett) | ✅ F3 / 🔵 | Levene (mediana) ✅; Bartlett 🔵 |
+| Teste para uma e duas variâncias | ✅ | página Variâncias: uma variância (χ², sem atalho do TCL; Bonett não implementado); duas também na página Dois grupos |
+| Teste de igualdade de variâncias (Levene/Bartlett) | ✅ | página Variâncias: F (2 grupos) ou Bartlett se normais; senão Levene (mediana) |
 | Testes de equivalência | 🔵 | |
 
 ## Testes não paramétricos
@@ -87,7 +88,7 @@ as mesmas saídas e nomenclatura que o aluno vê no Minitab.
 | Wilcoxon (pareado e uma amostra) | ✅ F3 | escolhido pelos pré-requisitos |
 | Mann-Whitney | ✅ F3 | escolhido pelos pré-requisitos |
 | Kruskal-Wallis + comparações | ✅ F3 | post hoc Mann-Whitney com Bonferroni (aviso: fora da apostila) |
-| Teste de sinal | 🔵 | fácil |
+| Teste de sinal | ✅ | página Uma amostra (binomial exata); pareado = aplicar às diferenças |
 | Friedman, mediana de Mood | 🔵 | |
 
 ## Tabelas e qui-quadrado

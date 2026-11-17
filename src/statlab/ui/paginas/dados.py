@@ -13,8 +13,8 @@ st.caption(
     "Faltantes ficam em branco e são descartados das análises, com aviso."
 )
 
-aba_importar, aba_colar, aba_editar, aba_reorganizar = st.tabs(
-    ["Importar arquivo", "Colar dados", "Editar worksheet", "Empilhar / desempilhar"]
+aba_importar, aba_colar, aba_editar, aba_reorganizar, aba_recodificar = st.tabs(
+    ["Importar arquivo", "Colar dados", "Editar worksheet", "Empilhar / desempilhar", "Recodificar"]
 )
 
 # ---------------------------------------------------------------- importar arquivo
@@ -130,3 +130,51 @@ with aba_reorganizar:
                 final = estado.nova_planilha(f"{nome} - desempilhada", desempilhada)
                 st.success(f"Worksheet **{final}** criada com as colunas: {', '.join(niveis)}.")
                 st.rerun()
+
+# ---------------------------------------------------------------- recodificar
+MAX_DISTINTOS = 50
+
+with aba_recodificar:
+    ativa = estado.ativa()
+    if ativa is None:
+        st.info("Não há worksheet para recodificar.")
+    else:
+        nome, df = ativa
+        st.caption(
+            "Troca valores de uma coluna e grava o resultado em uma coluna nova (equivalente a Dados › Recodificar). "
+            "Deixe o novo valor em branco para manter o valor atual. Ex.: 1 → Manhã, 2 → Tarde; ou A → 0, B → 1."
+        )
+        coluna = st.selectbox("Coluna", list(df.columns), key="rec_coluna")
+        distintos = tabela.valores_distintos(df[coluna])
+        if not distintos:
+            st.info("A coluna não tem valores preenchidos.")
+        elif len(distintos) > MAX_DISTINTOS:
+            st.warning(
+                f"A coluna tem {len(distintos)} valores distintos (máximo {MAX_DISTINTOS}). Recodificar serve para "
+                "categorias ou códigos, não para medidas contínuas."
+            )
+        else:
+            mapa_df = st.data_editor(
+                pd.DataFrame({"Valor atual": distintos, "Novo valor": [""] * len(distintos)}),
+                disabled=["Valor atual"],
+                hide_index=True,
+                key=f"rec_mapa_{nome}_{coluna}",
+            )
+            nova = st.text_input("Nome da coluna nova", value=f"{coluna} recodificada", key="rec_nova").strip()
+            if st.button("Recodificar", type="primary", key="btn_recodificar"):
+                if not nova:
+                    st.error("Informe o nome da coluna nova.")
+                elif nova in df.columns:
+                    st.error(f"Já existe uma coluna chamada {nova!r}; escolha outro nome.")
+                else:
+                    mapa = dict(zip(mapa_df["Valor atual"], mapa_df["Novo valor"].fillna(""), strict=True))
+                    try:
+                        recodificada, trocados = tabela.recodificar(df[coluna], mapa)
+                    except ErroDeDados as exc:
+                        st.error(str(exc))
+                    else:
+                        novo_df = df.copy()
+                        novo_df[nova] = recodificada
+                        estado.salvar(nome, novo_df)
+                        tipo = "numérica" if pd.api.types.is_numeric_dtype(recodificada) else "de texto"
+                        st.success(f"Coluna **{nova}** ({tipo}) criada em **{nome}**: {trocados} valor(es) trocado(s).")

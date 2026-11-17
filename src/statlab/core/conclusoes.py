@@ -19,8 +19,8 @@ from statlab.core.regressao import Regressao
 from statlab.core.regressao_multipla import RegressaoMultipla
 from statlab.core.resultados import Resultado
 from statlab.core.testes_t import TesteT
-from statlab.core.uma_amostra import UmaAmostra, UmaProporcao
-from statlab.core.variancias import Variancias
+from statlab.core.uma_amostra import UmaAmostra, UmaProporcao, UmaVariancia
+from statlab.core.variancias import IgualdadeVariancias, Variancias
 
 
 def _v(x: float) -> str:
@@ -290,7 +290,7 @@ def _qui_quadrado(res: QuiQuadrado, variavel: str) -> str:
 
 def _uma_amostra(res: UmaAmostra, variavel: str) -> str:
     ref = num(res.valor_referencia)
-    medida = "mediana" if res.nome.startswith("Wilcoxon") else "média"
+    medida = "mediana" if res.nome.startswith(("Wilcoxon", "Teste de sinal")) else "média"
     valor = res.mediana if medida == "mediana" else res.media
     if not res.significativo:
         return f"Não há evidência de que a {medida} de {variavel} difira de {ref} ({res.nome}: {_estat(res)}{_p(res)})."
@@ -320,6 +320,42 @@ def _variancias(res: Variancias, variavel: str) -> str:
     return f"As variâncias de {variavel} são significativamente diferentes (teste F: {_estat(res, 3)}{_p(res)})."
 
 
+def _uma_variancia(res: UmaVariancia, variavel: str) -> str:
+    ref = num(res.sigma0)
+    cautela = (
+        "" if res.confiavel else " Atenção: a amostra não é normal, e o χ² para variância não é confiável nesse caso."
+    )
+    if not res.significativo:
+        return (
+            f"Não há evidência de que o desvio padrão de {variavel} difira de {ref} "
+            f"({res.nome}: {_estat(res, 3)}{_p(res)}).{cautela}"
+        )
+    sentido = "maior" if res.desvio > res.sigma0 else "menor"
+    texto = (
+        f"O desvio padrão de {variavel} (s = {num(res.desvio)}) é significativamente {sentido} que {ref} "
+        f"({res.nome}: {_estat(res, 3)}{_p(res)}), {_confianca(res)}."
+    )
+    if res.ic:
+        texto += f" IC 95% para o desvio padrão: {num(res.ic[0])} a {num(res.ic[1])}."
+    return texto + cautela
+
+
+def _igualdade_variancias(res: IgualdadeVariancias, variavel: str) -> str:
+    grupos = ", ".join(res.desvios)
+    if not res.significativo:
+        return (
+            f"Não há evidência de diferença entre as variâncias de {variavel} dos grupos {grupos} "
+            f"({res.metodo}: {_p(res)})."
+        )
+    maior = max(res.desvios, key=res.desvios.__getitem__)
+    menor = min(res.desvios, key=res.desvios.__getitem__)
+    return (
+        f"As variâncias de {variavel} diferem significativamente entre os grupos ({res.metodo}: {_p(res)}), "
+        f"{_confianca(res)}; a maior dispersão é a de {maior} (s = {num(res.desvios[maior])}) e a menor, a de "
+        f"{menor} (s = {num(res.desvios[menor])})."
+    )
+
+
 def _normalidade(res: Normalidade, variavel: str) -> str:
     if res.normal:
         return f"Pode-se assumir que {variavel} vem de população normal ({res.nome}: {_p(res)})."
@@ -345,6 +381,8 @@ _DESPACHO = (
     (QuiQuadrado, _qui_quadrado),
     (UmaAmostra, _uma_amostra),
     (UmaProporcao, _uma_proporcao),
+    (UmaVariancia, _uma_variancia),
+    (IgualdadeVariancias, _igualdade_variancias),
     (Variancias, _variancias),
     (Normalidade, _normalidade),
 )

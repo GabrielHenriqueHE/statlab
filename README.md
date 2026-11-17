@@ -43,10 +43,13 @@ docs/reference/  material da disciplina (apostila revisada, gerador, gabarito 20
 - Apostila "Análise Estatística e Testes de Hipótese" (versão revisada, 2026), em `docs/reference/`.
 - `docs/reference/gerador_exercicios.py` — gerador de listas com gabarito (semente 2026). Usado como referência de regras e como teste de regressão.
 - Quartis pelo método do Excel (`QUARTIL.INC`, equivalente a `numpy.percentile(method="linear")`). Minitab usa outro método (`weibull`); a diferença pode alterar a classificação de outliers e deve ser citada nas conclusões.
+- Normalidade: a decisão usa o Shapiro-Wilk (apostila); o Anderson-Darling (padrão do Minitab) aparece como conferência. O **Ryan-Joiner** do Minitab **não foi implementado**: é semelhante ao Shapiro-Wilk (correlação entre os dados ordenados e os escores normais), mas o cálculo do p depende de aproximações tabeladas de Ryan & Joiner (1976) que não temos como conferir contra uma referência verificável. Quem precisar do mesmo resultado do Minitab deve usar lá o Ryan-Joiner; aqui, o Shapiro-Wilk leva à mesma decisão na grande maioria dos casos.
 
-## Docker (esboço)
+## Docker
 
 ```bash
 docker build -t statlab .
-docker run -p 8501:8501 statlab
+docker run --rm -p 8501:8501 statlab   # abra http://localhost:8501
 ```
+
+A imagem usa Python 3.13 e o uv 0.13.6 (versões fixas), instala só as dependências de produção a partir do `uv.lock` e tem *health check* em `/_stcore/health`.

@@ -28,7 +28,7 @@ if antes == depois:
     st.info("Escolha colunas diferentes para antes e depois.")
     st.stop()
 alt = componentes.escolher_alternativa("par_alt", "antes > depois (diminuiu)", "antes < depois (aumentou)")
-variavel = componentes.nome_variavel("par_nome", "o valor")
+variavel = componentes.nome_variavel("par_nome", "valor")
 try:
     res = analisar_antes_depois(df[antes].tolist(), df[depois].tolist(), alpha=alpha, alternativa=alt)
 except ErroDeDados as exc:

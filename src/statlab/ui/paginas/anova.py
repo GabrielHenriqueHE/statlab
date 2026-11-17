@@ -32,7 +32,7 @@ except ErroDeDados as exc:
     st.error(str(exc))
     st.stop()
 
-variavel = componentes.nome_variavel("an_nome", "a resposta")
+variavel = componentes.nome_variavel("an_nome", componentes.nome_padrao_grupos("an"))
 componentes.prerequisitos(res)
 componentes.resultado(res)
 componentes.conclusao(res, variavel)

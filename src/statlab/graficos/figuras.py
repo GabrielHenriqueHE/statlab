@@ -15,7 +15,7 @@ from plotly.subplots import make_subplots
 from scipy import stats
 
 from statlab.core.dados import ErroDeDados
-from statlab.core.formatacao import p_valor
+from statlab.core.formatacao import num, p_valor
 from statlab.core.normalidade import anderson_darling
 from statlab.core.regressao import coeficientes
 
@@ -188,7 +188,7 @@ def probabilidade_normal(valores: object, *, titulo: str | None = None) -> go.Fi
     if titulo is None:
         if np.ptp(x) > 0:
             ad = anderson_darling(x)
-            titulo = f"Probabilidade normal — Anderson-Darling A² = {ad.estatistica:.3f}, p {p_valor(ad.p)}"
+            titulo = f"Probabilidade normal — Anderson-Darling A² = {num(ad.estatistica, 3)}, p {p_valor(ad.p)}"
         else:
             titulo = "Probabilidade normal"
     return _aplicar_tema(fig, titulo, "Quantis teóricos da normal", "Valores observados")

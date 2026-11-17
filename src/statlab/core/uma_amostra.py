@@ -311,3 +311,183 @@ def analisar_uma_proporcao(
         verificacoes=verif,
         passos=passos,
     )
+
+
+# ----------------------------------------------------------------------------- mediana: teste de sinal
+
+
+def teste_sinal(
+    valores: np.ndarray, m0: float, *, alpha: float = ALPHA_PADRAO, alternativa: str = "bilateral"
+) -> UmaAmostra:
+    """Teste de sinal para a mediana: conta valores acima e abaixo de m0 (iguais a m0 são descartados).
+
+    Sob H₀, o número de valores acima segue Binomial(n_efetivo; 0,5). p pela binomial exata, como no
+    Minitab (Estat › Não paramétricos › Sinal para 1 amostra). Para dados pareados, use a coluna das diferenças.
+    """
+    v = np.asarray(valores, dtype=float)
+    acima = int((v > m0).sum())
+    abaixo = int((v < m0).sum())
+    iguais = len(v) - acima - abaixo
+    n_ef = acima + abaixo
+    if n_ef == 0:
+        raise ErroDeDados("Todos os valores são iguais à mediana de referência; o teste de sinal não se aplica.")
+    p = float(stats.binomtest(acima, n_ef, 0.5, alternative=validar_alternativa(alternativa)).pvalue)
+    mediana = float(np.median(v))
+    passos = [
+        f"H₀: mediana = {num(m0)}; H₁: mediana {_DESCR_ALT[alternativa]} {num(m0)}",
+        f"Abaixo de {num(m0)}: {abaixo}; iguais: {iguais} (descartados); acima: {acima}",
+        f"Sob H₀, acima ~ Binomial(n = {n_ef}; 0,5) → p {p_valor(p)} (binomial exata)",
+        f"Mediana da amostra = {num(mediana)}",
+    ]
+    return UmaAmostra(
+        nome="Teste de sinal (mediana)",
+        alpha=alpha,
+        p=p,
+        n=n_ef,
+        media=float(v.mean()),
+        mediana=mediana,
+        valor_referencia=float(m0),
+        alternativa=alternativa,
+        passos=passos,
+    )
+
+
+def analisar_sinal(
+    valores: object,
+    m0: float,
+    *,
+    alpha: float = ALPHA_PADRAO,
+    alternativa: str = "bilateral",
+    nome: str = "amostra",
+) -> UmaAmostra:
+    """Teste de sinal com a regra de outliers da disciplina (extremos saem; suaves: com e sem).
+
+    Não exige normalidade. É menos poderoso que o Wilcoxon (usa só o sinal, não a distância até m0).
+    """
+    v, avisos, prereq, verif, suave = _preparar(valores, nome)
+    res = teste_sinal(v, m0, alpha=alpha, alternativa=alternativa)
+    if suave.any() and int((~suave).sum()) >= 3:
+        try:
+            sub = teste_sinal(v[~suave], m0, alpha=alpha, alternativa=alternativa)
+        except ErroDeDados:
+            avisos.append("Sem o(s) outlier(s) suave(s), não sobram valores diferentes de m0; análise sem ele omitida.")
+        else:
+            mudou = sub.significativo != res.significativo
+            avisos.append(
+                f"Sem o(s) outlier(s) suave(s) (n = {int((~suave).sum())}): p {p_valor(sub.p)} → "
+                + ("a conclusão MUDA; relate as duas análises." if mudou else "a conclusão se mantém.")
+            )
+    if res.n is not None and res.n < len(v):
+        avisos.append(
+            f"{len(v) - res.n} valor(es) igual(is) à mediana de referência descartado(s) (n efetivo = {res.n})."
+        )
+    avisos.append("Teste de sinal: fora da apostila revisada (equivale ao Sinal para 1 amostra do Minitab).")
+    res.prerequisitos = prereq
+    res.verificacoes = verif
+    res.avisos = avisos
+    return res
+
+
+# ----------------------------------------------------------------------------- uma variância (qui-quadrado)
+
+
+@dataclass(kw_only=True)
+class UmaVariancia(Resultado):
+    """Teste χ² para uma variância. ``ic`` é o IC 95% para σ; ``ic_variancia`` para σ²."""
+
+    desvio: float = 0.0
+    sigma0: float = 0.0
+    alternativa: str = "bilateral"
+    ic_variancia: tuple[float, float] | None = None
+    confiavel: bool = True  # False se a amostra não é normal (o χ² não é robusto)
+
+
+def qui_quadrado_variancia(
+    valores: np.ndarray, sigma0: float, *, alpha: float = ALPHA_PADRAO, alternativa: str = "bilateral"
+) -> UmaVariancia:
+    """χ² = (n − 1)·s²/σ0², gl = n − 1. IC 95% para σ²: ((n − 1)s²/χ²₀,₉₇₅; (n − 1)s²/χ²₀,₀₂₅)."""
+    if not sigma0 > 0:
+        raise ErroDeDados("O desvio padrão de referência (σ₀) deve ser maior que zero.")
+    validar_alternativa(alternativa)
+    v = np.asarray(valores, dtype=float)
+    exigir_minimo(v, 2, "Teste de uma variância")
+    exigir_variacao(v, "amostra")
+    n = len(v)
+    gl = n - 1
+    s2 = float(v.var(ddof=1))
+    chi2 = gl * s2 / sigma0**2
+    if alternativa == "maior":
+        p = float(stats.chi2.sf(chi2, gl))
+    elif alternativa == "menor":
+        p = float(stats.chi2.cdf(chi2, gl))
+    else:
+        p = float(min(1.0, 2 * min(stats.chi2.cdf(chi2, gl), stats.chi2.sf(chi2, gl))))
+    ic_var = (gl * s2 / float(stats.chi2.ppf(0.975, gl)), gl * s2 / float(stats.chi2.ppf(0.025, gl)))
+    ic_dp = (float(np.sqrt(ic_var[0])), float(np.sqrt(ic_var[1])))
+    return UmaVariancia(
+        nome="Qui-quadrado para uma variância",
+        alpha=alpha,
+        estatistica=float(chi2),
+        rotulo_estatistica="χ²",
+        gl=(float(gl),),
+        p=p,
+        n=n,
+        ic=ic_dp,
+        ic_descricao="o desvio padrão (σ)",
+        desvio=float(np.sqrt(s2)),
+        sigma0=float(sigma0),
+        alternativa=alternativa,
+        ic_variancia=(float(ic_var[0]), float(ic_var[1])),
+        passos=[
+            f"H₀: σ = {num(sigma0)}; H₁: σ {_DESCR_ALT[alternativa]} {num(sigma0)}",
+            f"s = {num(np.sqrt(s2), 4)}; s² = {num(s2, 4)}; σ₀² = {num(sigma0**2, 4)}",
+            f"χ² = (n − 1)·s²/σ₀² = {gl}·{num(s2, 4)}/{num(sigma0**2, 4)} = {num(chi2, 3)}; gl = {gl}; p {p_valor(p)}",
+            f"IC 95% para σ²: ({num(ic_var[0], 4)}; {num(ic_var[1], 4)}); para σ: ({num(ic_dp[0], 4)}; "
+            f"{num(ic_dp[1], 4)})",
+        ],
+    )
+
+
+def analisar_uma_variancia(
+    valores: object,
+    sigma0: float,
+    *,
+    alpha: float = ALPHA_PADRAO,
+    alternativa: str = "bilateral",
+    nome: str = "amostra",
+) -> UmaVariancia:
+    """Teste χ² para uma variância, com outliers pela regra da disciplina e normalidade SEM o atalho do TCL.
+
+    O χ² para variância não é robusto à falta de normalidade, nem com n grande; por isso o TCL não vale aqui.
+    """
+    v, avisos, prereq, verif, suave = _preparar(valores, nome)
+    norm = shapiro_wilk(v, alpha=alpha, tcl=False, nome=nome)
+    prereq.append(norm.passos[0])
+    verif.append(
+        verificacao_normalidade(
+            norm, nome, "o χ² para variância não é confiável (o TCL não vale para variâncias, mesmo com n ≥ 30)"
+        )
+    )
+    res = qui_quadrado_variancia(v, sigma0, alpha=alpha, alternativa=alternativa)
+    res.confiavel = norm.normal
+    if not norm.normal:
+        avisos.append(
+            "Amostra não normal: o teste χ² para uma variância pode dar p muito errado. O Minitab oferece, nesse "
+            "caso, o método de Bonett (não implementado no statlab); interprete este resultado com cautela."
+        )
+    if suave.any() and int((~suave).sum()) >= 3:
+        try:
+            sub = qui_quadrado_variancia(v[~suave], sigma0, alpha=alpha, alternativa=alternativa)
+        except ErroDeDados:
+            avisos.append("Sem o(s) outlier(s) suave(s), a amostra fica sem variação; a análise sem ele não foi feita.")
+        else:
+            mudou = sub.significativo != res.significativo
+            avisos.append(
+                f"Sem o(s) outlier(s) suave(s) (n = {int((~suave).sum())}): p {p_valor(sub.p)} → "
+                + ("a conclusão MUDA; relate as duas análises." if mudou else "a conclusão se mantém.")
+            )
+    avisos.append("Teste de uma variância: fora da apostila revisada (equivale ao Teste de 1 variância do Minitab).")
+    res.prerequisitos = prereq
+    res.verificacoes = verif
+    res.avisos = avisos
+    return res

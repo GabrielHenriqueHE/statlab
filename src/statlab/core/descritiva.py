@@ -6,9 +6,11 @@ gabaritos). ``method="weibull"`` reproduz o Minitab; é uma opção, não o padr
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
+import pandas as pd
 from scipy import stats
 
 from statlab.core.dados import ErroDeDados
@@ -165,4 +167,22 @@ def resumo_estatistico(
 def verificacao_outliers(nome: str, v: np.ndarray, out: Outliers) -> Verificacao:
     """✓ sem outliers; ⚠ com outlier suave (análise com e sem) ou extremo (excluído)."""
     status = ATENCAO if (out.tem_suave or out.tem_extremo) else OK
-    return Verificacao(nome=f"Outliers — {nome}", status=status, detalhe=texto_outliers(nome, v, out))
+    detalhe = texto_outliers(nome, v, out).removeprefix(f"{nome}: ")  # o nome já está no título do cartão
+    return Verificacao(nome=f"Outliers — {nome}", status=status, detalhe=detalhe)
+
+
+def matriz_covariancia(df: pd.DataFrame, colunas: Sequence[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Covariância amostral (divisor n − 1) entre cada par de colunas, como Estat › Covariância do Minitab.
+
+    Cada par usa só as linhas em que as duas colunas estão preenchidas (pares completos). A diagonal é a
+    variância de cada coluna. Devolve ``(covariâncias, n de pares usados)``.
+    """
+    colunas = list(colunas)
+    if len(colunas) < 2:
+        raise ErroDeDados("Escolha pelo menos 2 colunas para a covariância.")
+    dados = df[colunas].apply(pd.to_numeric, errors="coerce")
+    preenchido = dados.notna().astype(int)
+    n_pares = preenchido.T @ preenchido
+    if int(n_pares.to_numpy().min()) < 2:
+        raise ErroDeDados("Algum par de colunas tem menos de 2 linhas preenchidas em comum.")
+    return dados.cov(min_periods=2), n_pares

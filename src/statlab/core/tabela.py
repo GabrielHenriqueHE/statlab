@@ -5,12 +5,12 @@ Equivalentes ao menu Dados do Minitab (Empilhamento, Desempilhamento e subconjun
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 import numpy as np
 import pandas as pd
 
-from statlab.core.dados import ErroDeDados
+from statlab.core.dados import ErroDeDados, numero
 
 
 def colunas_numericas(df: pd.DataFrame) -> list[str]:
@@ -95,3 +95,45 @@ def pares_completos(df: pd.DataFrame, colunas: Sequence[str]) -> tuple[pd.DataFr
         raise ErroDeDados("Escolha ao menos uma coluna.")
     completo = df.dropna(subset=colunas)
     return completo.reset_index(drop=True), int(len(df) - len(completo))
+
+
+def rotulo_valor(v: object) -> str:
+    """Texto de um valor como aparece na worksheet: 3.0 → "3"; 2.5 → "2.5"; texto fica igual."""
+    if isinstance(v, float | np.floating) and float(v).is_integer():
+        return str(int(v))
+    return str(v)
+
+
+def valores_distintos(serie: pd.Series) -> list[str]:
+    """Valores distintos (não faltantes) de uma coluna, como texto, na ordem em que aparecem."""
+    return list(dict.fromkeys(rotulo_valor(v) for v in serie.dropna()))
+
+
+def recodificar(serie: pd.Series, mapa: Mapping[str, str]) -> tuple[pd.Series, int]:
+    """Troca valores de uma coluna (equivalente a Dados › Recodificar do Minitab).
+
+    ``mapa``: valor atual (como texto, ver ``rotulo_valor``) → novo valor. Valores fora do mapa, ou com novo
+    valor vazio, ficam como estão; faltantes continuam faltantes. Se todos os resultados forem números
+    (aceita vírgula decimal), a coluna nova é numérica; senão, texto. Devolve ``(coluna, valores trocados)``.
+    """
+    trocas = {str(k): str(v).strip() for k, v in mapa.items() if str(v).strip() != ""}
+    if not trocas:
+        raise ErroDeDados("Informe o novo valor de pelo menos um dos valores atuais.")
+    novos: list[object] = []
+    trocados = 0
+    for v in serie:
+        if pd.isna(v):
+            novos.append(None)
+            continue
+        r = rotulo_valor(v)
+        if r in trocas:
+            novos.append(trocas[r])
+            trocados += 1
+        else:
+            novos.append(v)
+    try:
+        numericos = [None if x is None else numero(x) for x in novos]
+    except ErroDeDados:
+        texto = [None if x is None else rotulo_valor(x) for x in novos]
+        return pd.Series(texto, index=serie.index, dtype=object), trocados
+    return pd.Series([np.nan if x is None else x for x in numericos], index=serie.index, dtype=float), trocados

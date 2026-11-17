@@ -89,6 +89,14 @@ def nome_variavel(chave: str, padrao: str) -> str:
     return st.text_input("Como chamar a variável na conclusão", value=padrao, key=chave).strip() or padrao
 
 
+def nome_padrao_grupos(chave: str) -> str:
+    """Nome padrão da variável na conclusão para páginas com ``selecionar_grupos``: a coluna de resposta
+    (modo empilhado) ou "resposta". Sem artigo, porque a frase já diz "de {variável}"."""
+    if st.session_state.get(f"{chave}_modo") == MODO_EMPILHADO:
+        return str(st.session_state.get(f"{chave}_resp") or "resposta")
+    return "resposta"
+
+
 def conclusao(res: Resultado, variavel: str = "a variável") -> None:
     st.markdown("**Conclusão**")
     st.markdown(f"> {concluir(res, variavel=variavel)}")

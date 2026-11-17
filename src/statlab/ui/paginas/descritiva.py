@@ -6,7 +6,7 @@ import streamlit as st
 
 from statlab.core import tabela
 from statlab.core.dados import ErroDeDados
-from statlab.core.descritiva import resumo_estatistico
+from statlab.core.descritiva import matriz_covariancia, resumo_estatistico
 from statlab.core.formatacao import num, p_valor
 from statlab.core.normalidade import anderson_darling
 from statlab.ui import estado
@@ -95,3 +95,20 @@ if linhas_ad:
     st.subheader("Teste de normalidade (Anderson-Darling, padrão do Minitab)")
     st.caption("p > α = 0,05 significa que não se rejeita a normalidade (pode-se assumir distribuição normal).")
     st.dataframe(pd.DataFrame(linhas_ad), hide_index=True)
+
+if len(variaveis) >= 2:
+    st.subheader("Covariância")
+    st.caption(
+        "Covariância amostral (divisor n − 1) entre cada par de variáveis, sem considerar o agrupamento. A diagonal "
+        "é a variância. Cada par usa só as linhas com os dois valores preenchidos. O sinal indica o sentido da "
+        "relação; a intensidade depende das unidades — para comparar, use a correlação."
+    )
+    try:
+        cov, n_pares = matriz_covariancia(df, variaveis)
+    except ErroDeDados as exc:
+        st.warning(str(exc))
+    else:
+        st.dataframe(cov.map(lambda x: num(x, 4)))
+        if n_pares.to_numpy().min() != n_pares.to_numpy().max():
+            st.caption("Há faltantes: os pares usaram números diferentes de linhas.")
+            st.dataframe(n_pares)

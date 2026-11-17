@@ -20,6 +20,7 @@ paginas = {
         st.Page("paginas/pareado.py", title="Antes × depois (pareado)"),
         st.Page("paginas/anova.py", title="Três ou mais grupos (ANOVA)"),
         st.Page("paginas/anova_dois_fatores.py", title="ANOVA de dois fatores"),
+        st.Page("paginas/variancias.py", title="Variâncias"),
         st.Page("paginas/proporcoes.py", title="Duas proporções"),
         st.Page("paginas/qui_quadrado.py", title="Qui-quadrado"),
     ],
@@ -31,7 +32,10 @@ paginas = {
         st.Page("paginas/relatorio.py", title="Relatório"),
         st.Page("paginas/pratica.py", title="Prática"),
     ],
+    "Ajuda": [
+        st.Page("paginas/ajuda.py", title="Como usar"),
+    ],
 }
 estado.seletor_lateral()
 estado.seletor_alpha()
-st.navigation(paginas).run()
+st.navigation(paginas, expanded=True).run()

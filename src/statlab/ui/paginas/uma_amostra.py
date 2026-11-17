@@ -1,9 +1,9 @@
-"""Página Uma amostra: média (t ou Wilcoxon), média com σ conhecido (Z) e uma proporção."""
+"""Página Uma amostra: média (t ou Wilcoxon), média com σ conhecido (Z), mediana (sinal) e uma proporção."""
 
 import streamlit as st
 
 from statlab.core.dados import ErroDeDados
-from statlab.core.uma_amostra import analisar_uma_amostra, analisar_uma_proporcao, analisar_z
+from statlab.core.uma_amostra import analisar_sinal, analisar_uma_amostra, analisar_uma_proporcao, analisar_z
 from statlab.ui import componentes, estado
 
 st.header("Uma amostra")
@@ -11,7 +11,9 @@ st.caption("Compara a média (ou a proporção) de uma amostra com um valor de r
 
 alpha = estado.alpha()
 ativa = estado.ativa()
-aba_t, aba_z, aba_p = st.tabs(["Média (t ou Wilcoxon)", "Média com σ conhecido (Z)", "Proporção"])
+aba_t, aba_z, aba_s, aba_p = st.tabs(
+    ["Média (t ou Wilcoxon)", "Média com σ conhecido (Z)", "Mediana (teste de sinal)", "Proporção"]
+)
 
 with aba_t:
     if ativa is None:
@@ -52,6 +54,28 @@ with aba_z:
         else:
             componentes.mostrar(res_z, variavel_z)
             componentes.botao_relatorio("z1", componentes.item(res_z, f"Teste Z: {var_z}", variavel_z))
+
+with aba_s:
+    st.caption(
+        "Conta quantos valores ficam acima e abaixo da mediana de referência (binomial exata). Não exige "
+        "normalidade. Para dados pareados, aplique-o à coluna das diferenças (antes − depois) com m₀ = 0."
+    )
+    if ativa is None:
+        st.info("Não há worksheet. Importe ou cole dados na página **Dados**.")
+    else:
+        nome, df = ativa
+        numericas = componentes.exigir_numericas(df, nome)
+        var_s = st.selectbox("Variável", numericas, key="s1_var")
+        m0 = st.number_input("Mediana de referência (m₀)", value=0.0, key="s1_m0", format="%.4f")
+        alt_s = componentes.escolher_alternativa("s1_alt", "mediana > m₀", "mediana < m₀")
+        variavel_s = componentes.nome_variavel("s1_nome", var_s)
+        try:
+            res_s = analisar_sinal(df[var_s].to_numpy(dtype=float), m0, alpha=alpha, alternativa=alt_s, nome=var_s)
+        except ErroDeDados as exc:
+            st.error(str(exc))
+        else:
+            componentes.mostrar(res_s, variavel_s)
+            componentes.botao_relatorio("s1", componentes.item(res_s, f"Teste de sinal: {var_s}", variavel_s))
 
 with aba_p:
     c1, c2, c3 = st.columns(3)

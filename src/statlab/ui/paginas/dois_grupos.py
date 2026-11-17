@@ -29,7 +29,7 @@ with aba_medias:
     if grupos is not None:
         (nome_a, va), (nome_b, vb) = grupos.items()
         alt = componentes.escolher_alternativa("g2_alt", f"{nome_a} > {nome_b}", f"{nome_a} < {nome_b}")
-        variavel = componentes.nome_variavel("g2_nome", "a variável")
+        variavel = componentes.nome_variavel("g2_nome", componentes.nome_padrao_grupos("g2"))
         try:
             res = analisar_dois_grupos(va, vb, alpha=alpha, alternativa=alt, nome_a=nome_a, nome_b=nome_b)
         except ErroDeDados as exc:
