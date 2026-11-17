@@ -1,0 +1,17 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Caches de ferramentas
+.pytest_cache/
+.ruff_cache/
+
+# Arquivos temporários do Office (lock de abertura)
+~$*
