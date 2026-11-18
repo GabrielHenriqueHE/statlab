@@ -1,11 +1,14 @@
-"""Pacote: versão, subpacotes e o entrypoint que abre o app."""
+"""Pacote: versão, subpacotes, pureza do núcleo e o entrypoint que abre o app."""
 
-import subprocess
+from pathlib import Path
 
 import pytest
 
 import statlab
 from statlab import core, graficos, relatorio, ui
+
+RAIZ = Path(statlab.__file__).parent
+PUROS = ["core", "relatorio", "graficos"]
 
 
 def test_versao_definida() -> None:
@@ -19,20 +22,26 @@ def test_subpacotes_importam() -> None:
     assert graficos is not None
 
 
-def test_app_existe_no_pacote() -> None:
-    assert statlab.APP.is_file()
+@pytest.mark.parametrize("pacote", PUROS)
+def test_nucleo_relatorio_e_graficos_nao_importam_a_ui(pacote: str) -> None:
+    """Pureza: só a camada ``ui`` conhece o motor gráfico (hoje PySide6)."""
+    for arquivo in (RAIZ / pacote).rglob("*.py"):
+        fonte = arquivo.read_text()
+        for proibido in ("PySide6", "statlab.ui", "streamlit"):
+            assert proibido not in fonte, f"{arquivo.relative_to(RAIZ)} importa {proibido}"
 
 
-def test_main_abre_o_app_com_streamlit(monkeypatch: pytest.MonkeyPatch) -> None:
-    chamadas: list[list[str]] = []
+def test_main_abre_a_janela_qt(monkeypatch: pytest.MonkeyPatch) -> None:
+    from statlab.ui import app as app_qt
 
-    def falso_call(args: list[str]) -> int:
-        chamadas.append(args)
-        return 0
+    chamadas: list[bool] = []
+    monkeypatch.setattr(app_qt, "main", lambda: chamadas.append(True))
+    statlab.main()
+    assert chamadas == [True]
 
-    monkeypatch.setattr(subprocess, "call", falso_call)
-    with pytest.raises(SystemExit) as saida:
-        statlab.main()
-    assert saida.value.code == 0
-    assert chamadas[0][1:4] == ["-m", "streamlit", "run"]
-    assert str(statlab.APP) in chamadas[0]
+
+def test_app_qt_tem_janela_e_entrada() -> None:
+    from statlab.ui import app as app_qt
+
+    assert callable(app_qt.main)
+    assert hasattr(app_qt, "JanelaPrincipal")

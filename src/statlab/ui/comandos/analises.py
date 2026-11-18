@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import streamlit as st
 
 from statlab.core import nao_parametricos as npar
 from statlab.core import qui_quadrado as qq
@@ -16,6 +15,7 @@ from statlab.core.dados import ErroDeDados
 from statlab.core.formatacao import num, p_valor
 from statlab.core.regressao_multipla import analisar_regressao_multipla, prever_multipla
 from statlab.ui.comandos import _base as b
+from statlab.ui.comandos import formulario as st
 
 MENU = "Estat"
 

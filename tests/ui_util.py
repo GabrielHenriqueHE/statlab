@@ -1,53 +1,85 @@
-"""Helpers dos testes de interface (AppTest do Streamlit)."""
+"""Helpers dos testes de interface (Qt).
 
-from pathlib import Path
+Os diálogos são montados direto (``DialogoComando``), sem ``exec()`` — o modal bloquearia o teste.
+Mexer numa opção é ``definir(dialogo, chave, valor)``: grava o valor da ``key`` e redesenha o
+diálogo na hora, que é exatamente o que uma interação do usuário faz.
+"""
+
+from __future__ import annotations
 
 import pandas as pd
-from streamlit.testing.v1 import AppTest
+from PySide6.QtWidgets import QApplication
 
+from statlab.relatorio import ItemRelatorio
 from statlab.ui import estado
+from statlab.ui.app import JanelaPrincipal
+from statlab.ui.comandos import COMANDOS, Comando
+from statlab.ui.comandos._base import DialogoComando
 
-UI = Path(__file__).resolve().parents[1] / "src" / "statlab" / "ui"
-APP = UI / "app.py"
-TIMEOUT = 60
+
+def qt() -> QApplication:
+    """A QApplication do processo de teste (uma só; ver ``conftest`` para o modo sem tela)."""
+    return QApplication.instance() or QApplication([])
 
 
-def app(planilhas: dict[str, pd.DataFrame] | None = None) -> AppTest:
-    """Roda o app com as worksheets dadas (a primeira fica ativa)."""
-    at = AppTest.from_file(str(APP), default_timeout=TIMEOUT)
-    at.session_state[estado.PLANILHAS] = planilhas or {}
+def app(planilhas: dict[str, pd.DataFrame] | None = None) -> JanelaPrincipal:
+    """Abre o app com as worksheets dadas (a primeira fica ativa), num estado novo."""
+    qt()
+    estado.set_estado(estado.Estado())
+    for nome, df in (planilhas or {}).items():
+        estado.nova_planilha(nome, df)
     if planilhas:
-        at.session_state[estado.ATIVA] = next(iter(planilhas))
-    return at.run()
+        estado.ativa_set(next(iter(planilhas)))
+    return JanelaPrincipal()
 
 
-def sem_erros(at: AppTest, esperando_mensagem: bool = False) -> None:
-    """Nenhuma exceção não tratada. Sem ``esperando_mensagem``, também nenhum ``st.error``."""
-    assert [str(e.value) for e in at.exception] == []
+def comando(menu: str, grupo: str, nome: str) -> Comando:
+    for c in COMANDOS:
+        if (c.menu, c.grupo, c.nome) == (menu, grupo, nome):
+            return c
+    raise AssertionError(f"comando {menu}/{grupo}/{nome} não existe")
+
+
+def abrir(_contexto, menu: str, grupo: str, nome: str) -> DialogoComando:
+    """Abre o diálogo de um comando de menu (o contexto só deixa a chamada parecida com o uso)."""
+    cmd = comando(menu, grupo, nome)
+    return DialogoComando(cmd.nome, cmd.corpo)
+
+
+def definir(dialogo: DialogoComando, chave: str, valor) -> DialogoComando:
+    """Marca uma opção do diálogo pela ``key`` do widget e redesenha."""
+    dialogo.formulario.definir_valor(chave, valor)
+    return dialogo
+
+
+def textos(dialogo: DialogoComando) -> list[str]:
+    """Os rótulos e mensagens que o diálogo está mostrando agora."""
+    return dialogo.formulario.textos
+
+
+def executar(dialogo: DialogoComando, rotulo: str = "Executar") -> DialogoComando:
+    """Clica no botão que roda o comando."""
+    assert dialogo.formulario.acao is not None, f"diálogo sem ação; mostrando: {textos(dialogo)}"
+    assert dialogo.formulario.rotulo_acao == rotulo, (
+        f"o botão é {dialogo.formulario.rotulo_acao!r}, não {rotulo!r}"
+    )
+    dialogo.executar()
+    return dialogo
+
+
+def sem_erros(dialogo: DialogoComando, esperando_mensagem: bool = False) -> None:
+    """Nenhum erro de dados na última execução (com ``esperando_mensagem``, não checa)."""
     if not esperando_mensagem:
-        assert [e.value for e in at.error] == []
+        assert dialogo.ultimo_erro == "", dialogo.ultimo_erro
 
 
-def abrir(at: AppTest, menu: str, grupo: str, nome: str) -> AppTest:
-    """Clica num item de menu, abrindo o diálogo do comando."""
-    return at.button(key=f"menu_{menu}_{grupo}_{nome}").click().run()
-
-
-def executar(at: AppTest, rotulo: str = "Executar") -> AppTest:
-    """Clica no botão que roda o comando do diálogo aberto."""
-    for botao in at.button:
-        if botao.label == rotulo:
-            return botao.click().run()
-    raise AssertionError(f"botão {rotulo!r} não encontrado; há: {[b.label for b in at.button]}")
-
-
-def saida(at: AppTest) -> list:
+def saida() -> list[ItemRelatorio]:
     """Os blocos acumulados na janela de sessão."""
-    return at.session_state[estado.SESSAO]
+    return estado.sessao()
 
 
-def linhas_da_saida(at: AppTest, indice: int = -1) -> str:
-    item = saida(at)[indice]
+def linhas_da_saida(indice: int = -1) -> str:
+    item = saida()[indice]
     return "\n".join([*item.resultado, *item.avisos, *item.passos])
 
 

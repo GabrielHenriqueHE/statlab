@@ -1,7 +1,7 @@
 """Saída da sessão: cada item reúne o comando, os diagnósticos, o resultado, as notas, o cálculo e os gráficos.
 
 Exporta Markdown (texto, sem gráficos) e HTML autocontido (gráficos interativos, plotly.js embutido uma vez,
-sem CDN). Não importa Streamlit.
+sem CDN). Não importa nada da interface.
 """
 
 from __future__ import annotations

@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import pandas as pd
-import streamlit as st
 
 from statlab.core import importacao, tabela
 from statlab.ui import estado
 from statlab.ui.comandos import _base as b
+from statlab.ui.comandos import formulario as st
 
 MENU = "Dados"
 MAX_DISTINTOS = 50

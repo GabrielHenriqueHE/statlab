@@ -1,7 +1,8 @@
 # statlab — instruções para o Claude
 
 Ferramenta de análise estatística em pt-BR, no modelo do Minitab: **o usuário escolhe o comando e as
-opções; o app calcula exatamente aquilo e reporta.** Núcleo estatístico puro e testado + UI Streamlit.
+opções; o app calcula exatamente aquilo e reporta.** Núcleo estatístico puro e testado + UI em Qt
+(PySide6).
 **Correção estatística vem antes de tudo.**
 
 ## A regra que manda em todas as outras
@@ -24,7 +25,8 @@ Quem quiser orientação usa o menu **Assistente**, que faz perguntas e **indica
 sem analisar nada.
 
 ## Estrutura
-- `src/statlab/core/` — cálculos puros. **Proibido importar `streamlit`** aqui (há teste de guarda).
+- `src/statlab/core/` — cálculos puros. **Proibido importar `PySide6`** (ou qualquer coisa de `ui/`)
+  aqui; o mesmo vale para `relatorio/` e `graficos/` (há teste de guarda em `tests/test_pacote.py`).
   Cada função roda **um** teste com as opções recebidas e devolve um dataclass de `resultados.py`
   (estatística, gl, p, IC, n, `passos`, `avisos`, `verificacoes`). Funções que escolhem o teste ou
   mexem nos dados não existem mais — veja a regra acima.
@@ -34,12 +36,19 @@ sem analisar nada.
 - `relatorio/relatorio.py` — o registro da saída da sessão: `ItemRelatorio` é um bloco (título,
   tabelas, linhas de resultado, diagnósticos, notas, cálculo, figuras) e `item_de` monta um a partir
   de um `Resultado`. Também exporta a sessão em Markdown e HTML (autocontido, sem CDN). Puro.
-- `src/statlab/ui/` — app Streamlit. `app.py` monta o layout (worksheet + janela de sessão);
-  `ui/menu.py` é a barra de menus; `ui/sessao.py` desenha a janela de sessão; `ui/comandos/` tem um
-  módulo por comando (diálogo de opções → chama o núcleo → grava na sessão). Nenhuma regra
-  estatística mora aqui. Estado em `ui/estado.py` (worksheets como no Minitab, e qual diálogo está
-  aberto — o comando aberto precisa ficar no estado, senão mexer numa opção o fecharia).
-- `src/statlab/graficos/` — figuras Plotly puras (sem Streamlit) e exportação (`exportar.py`):
+- `src/statlab/ui/` — app Qt (PySide6). `app.py` é a `JanelaPrincipal` (menu + `QSplitter` com a
+  janela de sessão em cima e as worksheets embaixo); `ui/menu.py` monta o `QMenuBar` (um submenu por
+  grupo); `ui/sessao.py` desenha as abas da sessão (figuras num `QWebEngineView` com cópia local do
+  `plotly.min.js`, sem CDN); `ui/worksheet.py` + `ui/grade.py` são a grade (um `QAbstractTableModel`
+  sobre o `DataFrame`); `ui/comandos/` tem um módulo por comando. Nenhuma regra estatística aqui.
+  Estado em `ui/estado.py`: `Estado(QObject)` com Signals, exposto pelas mesmas funções de módulo
+  (`planilhas()`, `ativa()`, `registrar()`, …) — os comandos não sabem que existe um `QObject`.
+- `ui/comandos/formulario.py` — o shim que dá aos comandos o mesmo modelo de rerun de antes: cada
+  widget é identificado pela `key=`, o valor escolhido fica guardado por `key`, e mexer numa opção
+  reconstrói a área do diálogo chamando o corpo do comando de novo. Os comandos o importam como
+  `st`, então as chamadas (`st.selectbox`, `st.radio`, …) não mudaram. `_base.py` tem o
+  `DialogoComando` (área redesenhável + botões fixos) e os helpers de sempre.
+- `src/statlab/graficos/` — figuras Plotly puras (sem interface) e exportação (`exportar.py`):
   **somente HTML interativo**, por decisão do usuário (sem Kaleido/Chrome).
 - `core/importacao.py` (CSV/XLSX/texto colado) e `core/tabela.py` (empilhar, desempilhar, recodificar,
   pares completos) — entrada e arrumação de dados, sem regras estatísticas.
@@ -53,7 +62,8 @@ sem analisar nada.
 - Instalar: `uv sync`
 - Testes: `uv run pytest`
 - Lint: `uv run ruff check .` (formatar: `uv run ruff format .`)
-- App: `uv run statlab` (ou `uv run streamlit run src/statlab/ui/app.py`)
+- App: `uv run statlab` (abre a janela Qt; os testes rodam com `QT_QPA_PLATFORM=offscreen`, ver
+  `tests/conftest.py`)
 
 ## O que cada comando calcula (implementar exatamente)
 
@@ -115,9 +125,11 @@ Vírgula decimal, ponto de milhar (`1.452,78`); p: `p < 0,001` ou `p = 0,047`; n
   ajustar o teste para bater com um número.
 
 ## Dependências
-Base: numpy, scipy, pandas, statsmodels, streamlit, plotly, openpyxl. Dev: pytest, ruff. Nada além
-disso sem perguntar ao usuário. Antes de usar uma API nova, confirmar que existe na versão instalada
-(Streamlit 1.67: `st.dialog`, `st.popover` e `st.fragment` existem; menu nativo, não).
+Base: numpy, scipy, pandas, statsmodels, PySide6, plotly, openpyxl. Dev: pytest, pytest-qt, ruff.
+Nada além disso sem perguntar ao usuário. Antes de usar uma API nova, confirmar que existe na versão
+instalada. O `QWebEngineView` (gráficos) vem do PySide6-Addons e embute um Chromium: precisa ser
+importado **antes** da `QApplication` (é o que `sessao.preparar_webengine()` faz) e pode exigir libs
+de sistema; sem ele, cada figura ganha um botão que abre o gráfico no navegador.
 
 ## Git
 Não commitar sem pedido explícito do usuário. Mensagens de commit terminam com as linhas de

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import streamlit as st
 
 from statlab.core import correlacao as cor_mod
 from statlab.core import uma_amostra as ua
@@ -14,6 +13,7 @@ from statlab.core.normalidade import anderson_darling, shapiro_wilk
 from statlab.core.proporcoes import fisher_duas_proporcoes, z_duas_proporcoes
 from statlab.core.testes_t import t_independente, t_pareado
 from statlab.ui.comandos import _base as b
+from statlab.ui.comandos import formulario as st
 
 MENU, GRUPO = "Estat", "Estatísticas básicas"
 

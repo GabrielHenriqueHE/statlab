@@ -6,10 +6,10 @@ O Assistente responde "qual comando usar?" — ele indica, não analisa. Nenhum 
 from __future__ import annotations
 
 import pandas as pd
-import streamlit as st
 
 from statlab.core import assistente
 from statlab.ui.comandos import _base as b
+from statlab.ui.comandos import formulario as st
 
 RESPOSTAS = {"Sim": True, "Não": False, "Não sei": None}
 

@@ -1,39 +1,72 @@
-"""Entrada do app statlab (Streamlit). Rode com ``uv run statlab``.
+"""Entrada do app statlab (Qt). Rode com ``uv run statlab``.
 
-Layout no modelo do Minitab: barra de menus em cima, worksheet à esquerda e janela de sessão à
-direita. Cada comando do menu abre um diálogo com as suas opções e manda a saída para a sessão.
+Layout no modelo do Minitab: barra de menus nativa em cima, janela de sessão e seção de worksheets
+separadas por um divisor que o usuário arrasta.
 """
 
-import pandas as pd
-import streamlit as st
+from __future__ import annotations
 
-from statlab.ui import estado, menu, sessao
+import sys
+import traceback
 
-st.set_page_config(page_title="statlab", layout="wide")
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QSplitter
 
-st.markdown("### statlab")
-menu.barra()
+from statlab.ui import menu, sessao, worksheet
 
-estado.seletor_lateral()
-st.sidebar.caption(
+TITULO = "statlab"
+RODAPE = (
     "O statlab executa o comando que você escolher, com as opções que você marcar. "
     "Ele não troca o teste, não exclui dados e não escreve a conclusão."
 )
 
-esquerda, direita = st.columns([1.1, 1])
 
-with esquerda:
-    ativa = estado.ativa()
-    if ativa is None:
-        st.subheader("Worksheet")
-        st.info("Nenhuma worksheet aberta. Use **Dados › Abrir arquivo** ou **Dados › Colar dados**.")
-    else:
-        nome, df = ativa
-        st.subheader(f"Worksheet: {nome}")
-        editado = st.data_editor(df, num_rows="dynamic", width="stretch", height=520, key=f"ws_{nome}")
-        if not editado.equals(df):
-            estado.salvar(nome, pd.DataFrame(editado))
-        st.caption(f"{len(df)} linha(s) × {df.shape[1]} coluna(s). Edite as células diretamente.")
+class JanelaPrincipal(QMainWindow):
+    """A janela do app. Quem quiser um estado próprio chama ``estado.set_estado`` antes de criá-la."""
 
-with direita:
-    sessao.painel()
+    def __init__(self) -> None:
+        super().__init__()
+        self.setWindowTitle(TITULO)
+        self.resize(1200, 820)
+
+        self.painel_sessao = sessao.PainelSessao()
+        self.painel_worksheet = worksheet.PainelWorksheet()
+
+        divisor = QSplitter(Qt.Vertical)
+        divisor.addWidget(self.painel_sessao)
+        divisor.addWidget(self.painel_worksheet)
+        divisor.setStretchFactor(0, 3)
+        divisor.setStretchFactor(1, 2)
+        divisor.setSizes([480, 340])
+        self.setCentralWidget(divisor)
+
+        self.acoes = menu.montar(self.menuBar())
+        self.statusBar().showMessage(RODAPE)
+
+
+def mostrar_erro_inesperado(tipo, valor, tb) -> None:
+    """Bug não vira traceback na tela: o detalhe vai para o terminal e a tela mostra uma caixa."""
+    traceback.print_exception(tipo, valor, tb)
+    try:
+        QMessageBox.critical(
+            None,
+            "Erro inesperado",
+            f"{tipo.__name__}: {valor}\n\nO detalhe completo saiu no terminal.",
+        )
+    except Exception:  # noqa: BLE001 — se nem a caixa de erro abre, resta o terminal
+        pass
+
+
+def main() -> None:
+    """Abre a janela do statlab."""
+    sessao.preparar_webengine()  # antes da QApplication existir, como o Qt exige
+    app = QApplication(sys.argv)
+    app.setApplicationName(TITULO)
+    sys.excepthook = mostrar_erro_inesperado
+    janela = JanelaPrincipal()
+    janela.show()
+    sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()

@@ -1,36 +1,37 @@
-"""Barra de menus do statlab (o Streamlit não tem menu nativo: cada menu é um popover)."""
+"""A barra de menus do statlab: ``QMenuBar`` nativo montado a partir de ``COMANDOS``/``MENUS``.
+
+Um menu por entrada de ``MENUS``, um submenu em cascata por grupo de comando, na ordem em que os
+comandos foram registrados (nada é reordenado aqui).
+"""
 
 from __future__ import annotations
 
-import streamlit as st
+from PySide6.QtGui import QAction
+from PySide6.QtWidgets import QMenu, QMenuBar
 
-from statlab.ui import estado
-from statlab.ui.comandos import COMANDOS, MENUS
+from statlab.ui.comandos import COMANDOS, MENUS, Comando
 
 
-def chave(comando) -> str:
+def chave(comando: Comando) -> str:
     return f"{comando.menu}_{comando.grupo}_{comando.nome}"
 
 
-def barra() -> None:
-    """Desenha a barra de menus e, se houver, o diálogo do comando aberto."""
-    colunas = st.columns(len(MENUS))
-    for coluna, nome_menu in zip(colunas, MENUS, strict=True):
+def montar(barra: QMenuBar) -> dict[str, QAction]:
+    """Preenche a barra de menus e devolve ``{chave do comando: ação}``."""
+    acoes: dict[str, QAction] = {}
+    for nome_menu in MENUS:
         comandos = [c for c in COMANDOS if c.menu == nome_menu]
-        with coluna.popover(nome_menu, width="stretch"):
-            grupo_atual = None
-            for c in comandos:
-                if c.grupo != grupo_atual:
-                    grupo_atual = c.grupo
-                    if grupo_atual:
-                        st.caption(grupo_atual)
-                if st.button(c.nome, key=f"menu_{chave(c)}", width="stretch"):
-                    estado.abrir_comando(chave(c))
-                    st.rerun()
-
-    aberto = estado.comando_aberto()
-    if aberto:
-        for c in COMANDOS:
-            if chave(c) == aberto:
-                c.abrir()
-                break
+        if not comandos:
+            continue
+        menu = barra.addMenu(nome_menu)
+        submenus: dict[str, QMenu] = {}
+        for comando in comandos:
+            destino: QMenu = menu
+            if comando.grupo:
+                if comando.grupo not in submenus:
+                    submenus[comando.grupo] = menu.addMenu(comando.grupo)
+                destino = submenus[comando.grupo]
+            acao = destino.addAction(comando.nome)
+            acao.triggered.connect(lambda _marcado=False, cmd=comando: cmd.abrir())
+            acoes[chave(comando)] = acao
+    return acoes

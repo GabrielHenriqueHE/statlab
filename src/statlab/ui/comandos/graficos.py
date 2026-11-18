@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import streamlit as st
-
 from statlab import graficos
 from statlab.core import tabela as tab_mod
 from statlab.ui.comandos import _base as b
+from statlab.ui.comandos import formulario as st
 
 MENU = "Gráfico"
 SEM_GRUPO = "(nenhum)"
@@ -134,7 +133,7 @@ def pareto() -> None:
             cont = df[cat].dropna().astype(str).value_counts()
             fig = graficos.pareto(list(cont.index), cont.to_numpy())
         else:
-            base = df[[cat, contagem]].dropna().groupby(cat)[contagem].sum()
+            base = df.groupby(cat, dropna=True)[contagem].sum()
             fig = graficos.pareto(list(base.index.astype(str)), base.to_numpy())
         return b.item_simples("Gráfico de Pareto", comando_nome="Pareto", figuras=[fig])
 
@@ -153,7 +152,7 @@ def barras() -> None:
         return
 
     def executar():
-        base = df[[cat, val]].dropna().groupby(cat)[val].mean()
+        base = df.groupby(cat, dropna=True)[val].mean()
         fig = graficos.barras(list(base.index.astype(str)), base.to_numpy(), titulo=f"Média de {val} por {cat}")
         return b.item_simples("Gráfico de barras", comando_nome="Barras", figuras=[fig])
 

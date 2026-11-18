@@ -1,6 +1,6 @@
 """Gráficos Plotly do statlab (equivalentes aos do menu Gráficos do Minitab).
 
-Funções puras: recebem dados e devolvem ``plotly.graph_objects.Figure``. Não importam Streamlit.
+Funções puras: recebem dados e devolvem ``plotly.graph_objects.Figure``. Não importam nada da interface.
 Dados faltantes (NaN) são removidos por grupo, e a quantidade descartada aparece no título quando relevante.
 """
 

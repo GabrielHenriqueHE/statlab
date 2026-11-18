@@ -9,7 +9,7 @@ from statlab.core.dados import ErroDeDados
 from statlab.core.regressao_multipla import analisar_regressao_multipla, prever_multipla
 from statlab.core.resultados import ATENCAO, FALHA, OK
 from tests.helpers import aprox, carregar, p_menor_que, pdf
-from tests.ui_util import abrir, app, executar, linhas_da_saida, saida, sem_erros
+from tests.ui_util import abrir, app, definir, executar, linhas_da_saida, saida, sem_erros
 
 
 def _doe() -> pd.DataFrame:
@@ -203,44 +203,44 @@ def test_regressao_multipla_poucas_linhas():
         analisar_regressao_multipla(df, "y", ["a", "b"])
 
 
+
 # --------------------------------------------------------------------------- telas (comandos)
 
 
 def test_comando_anova2_com_dados_do_guia():
-    at = abrir(app({"DOE": _doe()}), "Estat", "ANOVA", "Dois fatores")
-    at.selectbox(key="a2_a").set_value("SistemaPedidos").run()
-    at.selectbox(key="a2_b").set_value("Pacote").run()
-    at = executar(at)
-    sem_erros(at)
-    item = saida(at)[-1]
+    dialogo = abrir(app({"DOE": _doe()}), "Estat", "ANOVA", "Dois fatores")
+    definir(dialogo, "a2_a", "SistemaPedidos")
+    definir(dialogo, "a2_b", "Pacote")
+    executar(dialogo)
+    sem_erros(dialogo)
+    item = saida()[-1]
     tabela = dict(item.tabelas)["Análise de variância (SQ ajustadas)"]
     assert list(tabela["Valor F"][:3]) == ["64,46", "36,18", "20,12"]
-    assert "R² = 93,79%" in linhas_da_saida(at)
+    assert "R² = 93,79%" in linhas_da_saida()
 
 
 def test_comando_anova2_sem_replicas_mostra_erro():
     df = _doe().drop_duplicates(subset=["SistemaPedidos", "Pacote"])
-    at = abrir(app({"DOE": df}), "Estat", "ANOVA", "Dois fatores")
-    at.selectbox(key="a2_a").set_value("SistemaPedidos").run()
-    at.selectbox(key="a2_b").set_value("Pacote").run()
-    at = executar(at)
-    sem_erros(at, esperando_mensagem=True)
-    assert any("réplicas" in e.value for e in at.error)
-    assert saida(at) == [], "nada foi para a sessão"
+    dialogo = abrir(app({"DOE": df}), "Estat", "ANOVA", "Dois fatores")
+    definir(dialogo, "a2_a", "SistemaPedidos")
+    definir(dialogo, "a2_b", "Pacote")
+    executar(dialogo)
+    assert "réplicas" in dialogo.ultimo_erro
+    assert saida() == [], "nada foi para a sessão"
 
 
 def test_comando_regressao_multipla_com_dados_do_guia():
     df = _doe_codificado()[["SP", "PC", "SPxPC", "Horas"]]
-    at = abrir(app({"DOE": df}), "Estat", "Regressão", "Regressão múltipla")
-    at.selectbox(key="rm_y").set_value("Horas").run()
-    at.multiselect(key="rm_x").set_value(["SP", "PC", "SPxPC"]).run()
-    at.checkbox(key="rm_prev").set_value(True).run()
-    at.number_input(key="rm_v_SP").set_value(-1.0)
-    at.number_input(key="rm_v_PC").set_value(1.0)
-    at.number_input(key="rm_v_SPxPC").set_value(-1.0).run()
-    at = executar(at)
-    sem_erros(at)
-    texto = linhas_da_saida(at)
+    dialogo = abrir(app({"DOE": df}), "Estat", "Regressão", "Regressão múltipla")
+    definir(dialogo, "rm_y", "Horas")
+    definir(dialogo, "rm_x", ["SP", "PC", "SPxPC"])
+    definir(dialogo, "rm_prev", True)
+    definir(dialogo, "rm_v_SP", -1.0)
+    definir(dialogo, "rm_v_PC", 1.0)
+    definir(dialogo, "rm_v_SPxPC", -1.0)
+    executar(dialogo)
+    sem_erros(dialogo)
+    texto = linhas_da_saida()
     assert "R²(pred) = 86,02%" in texto
     assert "Horas = 12,5733" in texto
     assert "IC = (8,11; 9,89)" in texto
@@ -249,12 +249,14 @@ def test_comando_regressao_multipla_com_dados_do_guia():
 def test_comando_regressao_simples_e_a_multipla_com_um_preditor():
     """A regressão simples reproduz a reta da apostila (PDF Ex. 1: a = 4,70; b = 12,20)."""
     d = pdf()["ex1_publicidade"]
-    at = abrir(app({"Pub": pd.DataFrame({"x": d["x"], "y": d["y"]})}), "Estat", "Regressão", "Regressão simples")
-    at.selectbox(key="rs_y").set_value("y").run()
-    at.selectbox(key="rs_x").set_value("x").run()
-    at = executar(at)
-    sem_erros(at)
-    coefs = dict(saida(at)[-1].tabelas)["Coeficientes"]
+    dialogo = abrir(
+        app({"Pub": pd.DataFrame({"x": d["x"], "y": d["y"]})}), "Estat", "Regressão", "Regressão simples"
+    )
+    definir(dialogo, "rs_y", "y")
+    definir(dialogo, "rs_x", "x")
+    executar(dialogo)
+    sem_erros(dialogo)
+    coefs = dict(saida()[-1].tabelas)["Coeficientes"]
     assert list(coefs["Termo"]) == ["Constante", "x"]
     assert coefs["Coef"][0].startswith("12,20")
     assert coefs["Coef"][1].startswith("4,70")

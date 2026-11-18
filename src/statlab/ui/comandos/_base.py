@@ -2,6 +2,10 @@
 
 Só interface: escolher variáveis, opções e nível de confiança, rodar o núcleo e mandar a saída para
 a janela de sessão. Nenhuma regra estatística mora aqui.
+
+O corpo de cada comando é desenhado pelo ``DialogoComando``, que o chama de novo a cada mudança de
+opção (ver ``formulario.py``). Os helpers abaixo são os mesmos de sempre: quem chama não sabe se o
+widget é do Qt ou de outra coisa.
 """
 
 from __future__ import annotations
@@ -11,8 +15,17 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
-import streamlit as st
 from plotly import graph_objects as go
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QDialogButtonBox,
+    QLabel,
+    QScrollArea,
+    QVBoxLayout,
+    QWidget,
+)
 
 from statlab.core import tabela as tab_mod
 from statlab.core.dados import ErroDeDados, amostra
@@ -21,6 +34,7 @@ from statlab.core.formatacao import num
 from statlab.core.resultados import ATENCAO, FALHA, OK
 from statlab.relatorio import ItemRelatorio, item_de
 from statlab.ui import estado
+from statlab.ui.comandos import formulario as st
 
 ICONES = {OK: "✅", ATENCAO: "⚠️", FALHA: "❌"}
 ALTERNATIVAS = {"Diferente (bilateral)": "bilateral", "Maior (unilateral)": "maior", "Menor (unilateral)": "menor"}
@@ -33,17 +47,126 @@ class Comando:
     menu: str  # "Estat"
     grupo: str  # "Estatísticas básicas" (submenu); "" = direto no menu
     nome: str  # "2 amostras (t)"
-    abrir: Callable[[], None]  # função decorada com st.dialog
+    abrir: Callable[[], None]  # abre o diálogo modal do comando
+    corpo: Callable[[], None]  # o corpo que desenha as opções (os testes abrem o diálogo com ele)
 
 
 COMANDOS: list[Comando] = []
 
 
+def _apagar(layout) -> None:
+    """Descarta os widgets de um layout (a área de conteúdo é refeita a cada desenho).
+
+    Os sinais são bloqueados antes de soltar o widget: um sinal emitido na saída agendaria outro
+    desenho, e o ciclo não terminaria.
+    """
+    while layout.count():
+        item = layout.takeAt(0)
+        widget = item.widget()
+        if widget is not None:
+            widget.blockSignals(True)
+            widget.setParent(None)
+            widget.deleteLater()
+            continue
+        interno = item.layout()
+        if interno is not None:
+            _apagar(interno)
+            interno.deleteLater()
+
+
+class DialogoComando(QDialog):
+    """O diálogo de um comando: área de opções redesenhável + botões fixos, como no Minitab.
+
+    A área de opções é refeita por inteiro a cada mudança (é o corpo do comando que a desenha).
+    Os botões ficam fora dela, então nunca somem no meio de uma interação.
+    """
+
+    def __init__(self, nome: str, corpo: Callable[[], None], pai: QWidget | None = None) -> None:
+        super().__init__(pai)
+        self.setWindowTitle(nome)
+        self.setModal(True)
+        self.resize(620, 560)
+        self._corpo = corpo
+
+        fora = QVBoxLayout(self)
+
+        rolagem = QScrollArea()
+        rolagem.setWidgetResizable(True)
+        area = QWidget()
+        self._conteudo = QVBoxLayout(area)
+        self._conteudo.setAlignment(Qt.AlignTop)
+        rolagem.setWidget(area)
+        fora.addWidget(rolagem, 1)
+
+        #: Mensagem de erro de dados da última execução ("" quando não houve).
+        self.ultimo_erro = ""
+        self.aviso_erro = QLabel()
+        self.aviso_erro.setWordWrap(True)
+        self.aviso_erro.setStyleSheet(st.ESTILOS["error"])
+        self.aviso_erro.setVisible(False)
+        fora.addWidget(self.aviso_erro)
+
+        botoes = QDialogButtonBox()
+        self._ok = botoes.addButton("Executar", QDialogButtonBox.AcceptRole)
+        self._cancelar = botoes.addButton("Cancelar", QDialogButtonBox.RejectRole)
+        self._ok.setDefault(True)
+        self._ok.clicked.connect(self.executar)
+        self._cancelar.clicked.connect(self.reject)
+        fora.addWidget(botoes)
+
+        self.encerrado = False
+        self.formulario = st.Formulario(self._conteudo, self, self.desenhar)
+        self.desenhar()
+
+    def done(self, resultado: int) -> None:
+        """Fechou (Executar ou Cancelar): nenhum desenho atrasado pode rodar depois disto."""
+        self.encerrado = True
+        super().done(resultado)
+
+    def desenhar(self) -> None:
+        """Roda o corpo do comando outra vez, refazendo a área de opções com os valores atuais."""
+        if self.encerrado:
+            return
+        _apagar(self._conteudo)
+        self.formulario.iniciar()
+        marca = st.ATUAL.set(self.formulario)
+        try:
+            self._corpo()
+        finally:
+            st.ATUAL.reset(marca)
+        self._ok.setText(self.formulario.rotulo_acao)
+        self._ok.setEnabled(self.formulario.acao is not None)
+
+    def executar(self) -> None:
+        """Roda o comando e manda a saída para a sessão. Erro de dados não fecha o diálogo."""
+        self.ultimo_erro = ""
+        self.aviso_erro.setVisible(False)
+        self.formulario.sincronizar()
+        self.desenhar()  # o corpo roda com o que está nos widgets agora
+        acao = self.formulario.acao
+        if acao is None:
+            return
+        try:
+            saida = acao()
+        except ErroDeDados as exc:
+            self.ultimo_erro = str(exc)
+            self.aviso_erro.setText(f"❌ {exc}")
+            self.aviso_erro.setVisible(True)
+            return
+        if saida is not None:
+            itens = [saida] if isinstance(saida, ItemRelatorio) else list(saida)
+            estado.registrar(*itens)
+        self.accept()
+
+
 def comando(menu: str, grupo: str, nome: str) -> Callable[[Callable[[], None]], Callable[[], None]]:
-    """Registra um comando no menu e embrulha o corpo num diálogo do Streamlit."""
+    """Registra um comando no menu; abri-lo é abrir o diálogo modal com o corpo decorado."""
 
     def decorar(fn: Callable[[], None]) -> Callable[[], None]:
-        COMANDOS.append(Comando(menu=menu, grupo=grupo, nome=nome, abrir=st.dialog(nome, width="large")(fn)))
+        def abrir() -> None:
+            DialogoComando(nome, fn, QApplication.activeWindow()).exec()
+
+        COMANDOS.append(Comando(menu=menu, grupo=grupo, nome=nome, abrir=abrir, corpo=fn))
         return fn
 
     return decorar
@@ -56,7 +179,7 @@ def worksheet() -> tuple[str, pd.DataFrame] | None:
     """A worksheet ativa, ou None (com aviso na tela) quando não há nenhuma."""
     ativa = estado.ativa()
     if ativa is None:
-        st.info("Não há worksheet aberta. Use **Dados › Importar** ou **Dados › Colar**.")
+        st.info("Não há worksheet aberta. Use **Dados › Abrir arquivo** ou **Dados › Colar dados**.")
         return None
     return ativa
 
@@ -202,28 +325,11 @@ def aplicar_exclusao(amostras: dict[str, np.ndarray], excluir: bool) -> tuple[di
 
 
 def rodar(fn: Callable[[], ItemRelatorio | Sequence[ItemRelatorio] | None], rotulo: str = "Executar") -> None:
-    """Botões do diálogo: roda o comando e manda a saída para a sessão, ou cancela.
+    """Diz ao diálogo o que o botão de executar roda e como ele se chama.
 
-    Como no Minitab, o diálogo só fecha por um dos dois botões.
+    Como no Minitab, o diálogo só fecha por um dos dois botões (ver ``DialogoComando.executar``).
     """
-    c1, c2 = st.columns(2)
-    cancelar = c2.button("Cancelar", key=f"cancelar_{rotulo}", width="stretch")
-    executar = c1.button(rotulo, type="primary", key=f"ok_{rotulo}", width="stretch")
-    if cancelar:
-        estado.fechar_comando()
-        st.rerun()
-    if not executar:
-        return
-    try:
-        saida = fn()
-    except ErroDeDados as exc:
-        st.error(str(exc))
-        return
-    if saida is not None:
-        itens = [saida] if isinstance(saida, ItemRelatorio) else list(saida)
-        estado.registrar(*itens)
-    estado.fechar_comando()
-    st.rerun()
+    st.registrar_acao(fn, rotulo)
 
 
 def item_simples(

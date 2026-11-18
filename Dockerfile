@@ -18,6 +18,8 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY src ./src
 RUN uv sync --frozen --no-dev
 
+# DESATUALIZADO: daqui para baixo é o app Streamlit, que não existe mais (o statlab virou um app de
+# desktop em Qt). Rodar em contêiner exige expor o servidor gráfico (X11/Wayland) — ainda a decidir.
 EXPOSE 8501
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"

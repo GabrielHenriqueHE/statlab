@@ -3,8 +3,9 @@
 Ferramenta de análise estatística em português, no modelo do Minitab: **você escolhe o comando e as
 opções, o app calcula exatamente aquilo e reporta.**
 
-- **menus e janela de sessão** — Dados, Estat, Gráfico e Assistente; a worksheet fica à esquerda e a
-  saída de cada comando se acumula à direita, exportável em HTML ou Markdown;
+- **menus e janela de sessão** — Dados, Estat, Gráfico e Assistente numa barra de menus nativa; a
+  saída de cada comando se acumula em abas na janela de sessão (em cima) e a worksheet fica na grade
+  (embaixo), com divisor arrastável; a sessão é exportável em HTML ou Markdown;
 - **opções explícitas** — assumir variâncias iguais, Tukey, método da correlação, z ou Fisher, nível
   de confiança, excluir outliers extremos (desmarcado por padrão);
 - **diagnósticos, não decisões** — normalidade, outliers e critérios como n·p·q ≥ 5 aparecem com
@@ -37,20 +38,19 @@ uv sync
 ## Uso
 
 ```bash
-uv run statlab                              # abre o app no navegador
-uv run pytest                               # testes
-uv run ruff check .                         # lint
-uv run streamlit run src/statlab/ui/app.py  # mesmo app, com opções do Streamlit
+uv run statlab         # abre a janela do app
+uv run pytest          # testes
+uv run ruff check .    # lint
 ```
 
 ## Estrutura
 
 ```
 src/statlab/
-  core/        cálculos estatísticos puros (sem Streamlit)
-  graficos/    gráficos Plotly (sem Streamlit) e exportação HTML
-  ui/          app Streamlit: menu, janela de sessão e um diálogo por comando
-               (só exibição; a regra estatística fica no core)
+  core/        cálculos estatísticos puros (sem interface)
+  graficos/    gráficos Plotly (sem interface) e exportação HTML
+  ui/          app Qt (PySide6): barra de menus, janela de sessão, grade da worksheet
+               e um diálogo por comando (só exibição; a regra estatística fica no core)
   relatorio/   a saída da sessão e a exportação HTML/Markdown
 tests/         testes de aceitação e unitários
 docs/reference/  material da disciplina (apostila revisada, gerador, gabarito 2026)
@@ -64,9 +64,8 @@ docs/reference/  material da disciplina (apostila revisada, gerador, gabarito 20
 
 ## Docker
 
-```bash
-docker build -t statlab .
-docker run --rm -p 8501:8501 statlab   # abra http://localhost:8501
-```
+> **Desatualizado:** o `Dockerfile` servia o app Streamlit em `http://localhost:8501`. Depois da
+> troca para Qt o statlab é um app de desktop — rodar em contêiner exige expor o servidor gráfico
+> (X11/Wayland), o que ainda não está configurado aqui. Use `uv run statlab` na máquina.
 
 A imagem usa Python 3.13 e o uv 0.13.6 (versões fixas), instala só as dependências de produção a partir do `uv.lock` e tem *health check* em `/_stcore/health`.
