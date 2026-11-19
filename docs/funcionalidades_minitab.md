@@ -29,7 +29,8 @@ não exclui dados e não redige conclusão (ver `CLAUDE.md`).
 | Desempilhar (Dados › Desempilhar) | ✅ F2 | uma coluna por nível, faltantes no fim |
 | Subconjuntos / pares completos | ✅ F2 | `pares_completos` (aviso de linhas descartadas) |
 | Várias worksheets na sessão | ✅ F2 | seletor lateral "Worksheet ativa" |
-| Calculadora (fórmulas em colunas) | 🔵 | atribuir fórmula a coluna; útil, complexidade média |
+| Diferença entre colunas (Dados › Diferença) | ✅ | coluna nova = coluna B − coluna A, linha a linha; é com ela que se testa a normalidade das diferenças de um par antes/depois |
+| Calculadora (fórmulas em colunas) | 🔵 | fórmula livre em coluna; a diferença entre duas colunas já está feita (linha acima) |
 | Datas/horas como tipo de dado | 🔵 | hoje o eixo temporal aceita rótulos de texto |
 | Salvar/abrir projeto `.MPJ` | ⚪ | equivalente seria salvar a sessão; não é prioridade |
 | Recodificar valores | ✅ | aba Recodificar (Dados): grava em coluna nova; numérica se todos os novos valores forem números |

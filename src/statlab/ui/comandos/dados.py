@@ -1,4 +1,4 @@
-"""Menu Dados: abrir, colar, empilhar, desempilhar, recodificar e subconjunto."""
+"""Menu Dados: abrir, colar, empilhar, desempilhar, recodificar, diferença e subconjunto."""
 
 from __future__ import annotations
 
@@ -167,6 +167,50 @@ def recodificar() -> None:
         )
 
     b.rodar(executar, "Recodificar")
+
+
+@b.comando(MENU, "", "Diferença entre colunas")
+def diferenca() -> None:
+    alvo = b.worksheet()
+    if alvo is None:
+        return
+    nome, df = alvo
+    cols = b.numericas(df, minimo=2)
+    if cols is None:
+        return
+    c1, c2 = st.columns(2)
+    coluna_b = c1.selectbox("Coluna", cols, key="dif_b")
+    coluna_a = c2.selectbox("Menos a coluna", cols, index=min(1, len(cols) - 1), key="dif_a")
+    if coluna_a == coluna_b:
+        st.info("Escolha colunas diferentes.")
+        return
+    st.caption(f"A coluna nova recebe, linha a linha, {coluna_b} − {coluna_a}.")
+    destino = st.text_input("Coluna nova", f"{coluna_b} - {coluna_a}", key="dif_dest").strip()
+
+    def executar():
+        from statlab.core.dados import ErroDeDados
+
+        if not destino:
+            raise ErroDeDados("Informe o nome da coluna nova.")
+        if destino in df.columns:
+            raise ErroDeDados(f"Já existe uma coluna chamada {destino!r}; escolha outro nome.")
+        valores, descartados = tabela.diferenca(df[coluna_b], df[coluna_a])
+        novo_df = df.copy()
+        novo_df[destino] = valores
+        estado.salvar(nome, novo_df)
+        notas = (
+            [f"{descartados} linha(s) sem diferença por faltante em {coluna_b} ou {coluna_a}."]
+            if descartados
+            else []
+        )
+        return b.item_simples(
+            f"Coluna criada: {destino}",
+            comando_nome="Diferença entre colunas",
+            linhas=[f"{destino} = {coluna_b} − {coluna_a}"],
+            notas=notas,
+        )
+
+    b.rodar(executar, "Calcular")
 
 
 @b.comando(MENU, "", "Subconjunto (filtrar linhas)")

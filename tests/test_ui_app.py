@@ -97,6 +97,52 @@ def test_erro_de_dados_aparece_no_dialogo_sem_virar_traceback():
     assert saida() == [], "nada foi para a sessão"
 
 
+# --------------------------------------------------------------------------- diferença pareada
+
+
+def ws_ex4() -> dict[str, pd.DataFrame]:
+    d = pdf()["ex4_antes_depois"]
+    return {"Ex4": worksheet(antes=d["antes"], depois=d["depois"])}
+
+
+def test_diferenca_cria_a_coluna_na_mesma_worksheet():
+    janela = app(ws_ex4())
+    dialogo = abrir(janela, "Dados", "", "Diferença entre colunas")
+    definir(dialogo, "dif_b", "antes")
+    definir(dialogo, "dif_a", "depois")
+    definir(dialogo, "dif_dest", "Diferença")
+    executar(dialogo, "Calcular")
+    sem_erros(dialogo)
+    _, df = estado.ativa()
+    assert list(df.columns) == ["antes", "depois", "Diferença"], "a coluna entra na worksheet de sempre"
+    assert df["Diferença"][0] == df["antes"][0] - df["depois"][0]
+    assert "Diferença = antes − depois" in linhas_da_saida()
+
+
+def test_normalidade_roda_sobre_a_coluna_de_diferencas():
+    """A premissa do t pareado é sobre as diferenças: o usuário cria a coluna e escolhe o teste."""
+    janela = app(ws_ex4())
+    dialogo = abrir(janela, "Dados", "", "Diferença entre colunas")
+    definir(dialogo, "dif_dest", "Diferença")
+    executar(dialogo, "Calcular")
+    sem_erros(dialogo)
+
+    dialogo = abrir(janela, "Estat", "Estatísticas básicas", "Teste de normalidade")
+    definir(dialogo, "norm_var", "Diferença")
+    definir(dialogo, "norm_met", "Shapiro-Wilk")
+    executar(dialogo)
+    sem_erros(dialogo)
+    assert "p = 0,537" in linhas_da_saida(), "o p das diferenças do Ex. 4 do PDF"
+
+
+def test_diferenca_recusa_nome_de_coluna_que_ja_existe():
+    dialogo = abrir(app(ws_ex4()), "Dados", "", "Diferença entre colunas")
+    definir(dialogo, "dif_dest", "antes")
+    executar(dialogo, "Calcular")
+    assert "Já existe uma coluna chamada" in dialogo.ultimo_erro
+    assert saida() == []
+
+
 # --------------------------------------------------------------------------- o app não decide
 
 

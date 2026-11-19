@@ -1,4 +1,4 @@
-"""Operações sobre worksheets (DataFrames): empilhar, desempilhar e pares completos.
+"""Operações sobre worksheets (DataFrames): empilhar, desempilhar, pares completos e diferença.
 
 Equivalentes ao menu Dados do Minitab (Empilhamento, Desempilhamento e subconjuntos de colunas).
 """
@@ -107,6 +107,19 @@ def rotulo_valor(v: object) -> str:
 def valores_distintos(serie: pd.Series) -> list[str]:
     """Valores distintos (não faltantes) de uma coluna, como texto, na ordem em que aparecem."""
     return list(dict.fromkeys(rotulo_valor(v) for v in serie.dropna()))
+
+
+def diferenca(coluna_b: pd.Series, coluna_a: pd.Series) -> tuple[pd.Series, int]:
+    """Diferença pareada entre duas colunas (coluna_b − coluna_a), linha a linha.
+
+    Faltante em qualquer uma das colunas deixa a diferença faltante nessa linha (mesmo índice).
+    Devolve ``(coluna de diferenças, linhas com faltante em pelo menos uma coluna)``.
+    """
+    a = np.asarray(coluna_a, dtype=float)
+    b = np.asarray(coluna_b, dtype=float)
+    resultado = b - a
+    descartados = int(np.isnan(resultado).sum())
+    return pd.Series(resultado, index=coluna_a.index, dtype=float), descartados
 
 
 def recodificar(serie: pd.Series, mapa: Mapping[str, str]) -> tuple[pd.Series, int]:

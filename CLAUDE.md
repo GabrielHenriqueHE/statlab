@@ -51,7 +51,7 @@ sem analisar nada.
 - `src/statlab/graficos/` — figuras Plotly puras (sem interface) e exportação (`exportar.py`):
   **somente HTML interativo**, por decisão do usuário (sem Kaleido/Chrome).
 - `core/importacao.py` (CSV/XLSX/texto colado) e `core/tabela.py` (empilhar, desempilhar, recodificar,
-  pares completos) — entrada e arrumação de dados, sem regras estatísticas.
+  diferença entre colunas, pares completos) — entrada e arrumação de dados, sem regras estatísticas.
 - `core/assistente.py` — só a árvore de perguntas (`decidir`), que devolve **o comando e as opções a
   marcar**. Não toca nos dados e não roda análise.
 - `tests/` — pytest. `tests/fixtures/` — dados de referência.
@@ -84,7 +84,9 @@ p = 1 − p/2 (não significativo). Padrão bilateral.
    n ≥ 30 é informação para o usuário decidir, não um requisito que o app considera atendido.
 4. **t de uma amostra, t pareado, t de 2 amostras**: o de 2 amostras exige a opção explícita
    "assumir variâncias iguais" (variância combinada) ou não (Welch). O teste F e o Levene são
-   **comandos próprios**, não pré-condição.
+   **comandos próprios**, não pré-condição. A normalidade que interessa ao t pareado é a **das
+   diferenças**: quem quiser testá-la usa **Dados › Diferença entre colunas** e roda o teste de
+   normalidade na coluna criada — o t pareado não testa nada por conta própria.
 5. **Não paramétricos**: Wilcoxon (uma amostra e pareado), Mann-Whitney, Kruskal-Wallis e teste de
    sinal são comandos escolhidos pelo usuário, nunca substitutos automáticos.
 6. **ANOVA de 1 fator**: tabela SQ/QM/F/p e R². Tukey e a conferência de Welch são **opções**
