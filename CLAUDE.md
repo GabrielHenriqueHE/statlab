@@ -78,8 +78,9 @@ p = 1 − p/2 (não significativo). Padrão bilateral.
 2. **Outliers** (diagrama de caixa): D = Q3 − Q1; suave fora de [Q1 − 1,5D; Q3 + 1,5D], extremo fora
    de [Q1 − 3D; Q3 + 3D]. É **diagnóstico**. Excluir é uma opção do diálogo que o comando aplica
    antes de chamar o núcleo, sempre reportando o n antes e depois.
-3. **Normalidade**: Shapiro-Wilk ou Anderson-Darling (escolha do usuário; o padrão do Minitab é
-   Anderson-Darling). Reportar estatística, p e n. **Não** aplicar o atalho do TCL (`tcl=False`): o
+3. **Normalidade**: Shapiro-Wilk, Anderson-Darling ou Ryan-Joiner (escolha do usuário; o padrão do Minitab é
+   Anderson-Darling). Reportar estatística, p e n, e o gráfico de probabilidade normal do método escolhido.
+   O Ryan-Joiner usa a tabela de p da apostila (α de 0,01 a 0,10; n ≥ 9). **Não** aplicar o atalho do TCL (`tcl=False`): o
    n ≥ 30 é informação para o usuário decidir, não um requisito que o app considera atendido.
 4. **t de uma amostra, t pareado, t de 2 amostras**: o de 2 amostras exige a opção explícita
    "assumir variâncias iguais" (variância combinada) ou não (Welch). O teste F e o Levene são

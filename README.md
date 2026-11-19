@@ -16,7 +16,7 @@ O app não escolhe o teste, não exclui dados e não redige a conclusão — int
 Quem quiser orientação usa o menu **Assistente**, que pergunta e indica qual comando abrir.
 
 > **Status:** 44 comandos nos menus Dados, Estat, Gráfico, Assistente e Ajuda — descritivas,
-> normalidade (Shapiro-Wilk e Anderson-Darling), t de 1 e 2 amostras e pareado, não paramétricos
+> normalidade (Anderson-Darling, Ryan-Joiner e Shapiro-Wilk), t de 1 e 2 amostras e pareado, não paramétricos
 > (Mann-Whitney, Wilcoxon, Kruskal-Wallis, sinal), variâncias (F, Bartlett, Levene), ANOVA de um e
 > dois fatores, proporções, qui-quadrado, correlação, regressão simples e múltipla, e 11 gráficos.
 > Os valores são validados contra os exemplos resolvidos da apostila, o gabarito 2026 e a saída do
@@ -60,7 +60,7 @@ docs/reference/  material da disciplina (apostila revisada, gerador, gabarito 20
 
 - Apostila "Análise Estatística e Testes de Hipótese" (versão revisada, 2026), em `docs/reference/`.
 - Quartis pelo método do Excel (`QUARTIL.INC`, equivalente a `numpy.percentile(method="linear")`). O Minitab usa outro método (`weibull`); a diferença pode alterar a classificação de outliers.
-- Normalidade: a decisão usa o Shapiro-Wilk (apostila); o Anderson-Darling (padrão do Minitab) aparece como conferência. O **Ryan-Joiner** do Minitab **não foi implementado**: é semelhante ao Shapiro-Wilk (correlação entre os dados ordenados e os escores normais), mas o cálculo do p depende de aproximações tabeladas de Ryan & Joiner (1976) que não temos como conferir contra uma referência verificável. Quem precisar do mesmo resultado do Minitab deve usar lá o Ryan-Joiner; aqui, o Shapiro-Wilk leva à mesma decisão na grande maioria dos casos.
+- Normalidade: o usuário escolhe o teste no comando — Anderson-Darling (padrão do Minitab), **Ryan-Joiner** (do Minitab) ou Shapiro-Wilk (apostila). O p do Ryan-Joiner vem da tabela da apostila (fórmula e fatores de correção de Ryan & Joiner, 1976), que cobre α de 0,01 a 0,10 e exige n ≥ 9. Em n pequeno o p tende a rejeitar mais do que α mesmo com dados normais (medido por simulação; a saída traz um aviso para n < 25). Cada teste de normalidade vem com o gráfico de probabilidade normal, com a estatística do método escolhido.
 
 ## Docker
 

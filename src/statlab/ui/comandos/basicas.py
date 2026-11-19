@@ -5,11 +5,12 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from statlab import graficos
 from statlab.core import correlacao as cor_mod
 from statlab.core import uma_amostra as ua
 from statlab.core.descritiva import matriz_covariancia, resumo_estatistico
 from statlab.core.formatacao import num, p_valor
-from statlab.core.normalidade import anderson_darling, shapiro_wilk
+from statlab.core.normalidade import anderson_darling, ryan_joiner, shapiro_wilk
 from statlab.core.proporcoes import fisher_duas_proporcoes, z_duas_proporcoes
 from statlab.core.testes_t import t_independente, t_pareado
 from statlab.ui.comandos import _base as b
@@ -93,7 +94,11 @@ def normalidade() -> None:
         return
     _, df = alvo
     var = b.escolher_coluna(df, "Variável", "norm_var")
-    metodo = st.radio("Teste", ["Anderson-Darling (padrão do Minitab)", "Shapiro-Wilk"], key="norm_met")
+    metodo = st.radio(
+        "Teste",
+        ["Anderson-Darling (padrão do Minitab)", "Ryan-Joiner (Minitab)", "Shapiro-Wilk"],
+        key="norm_met",
+    )
     conf = b.confianca("norm_conf")
     if var is None:
         return
@@ -104,9 +109,13 @@ def normalidade() -> None:
         alpha = b.alpha_de(conf)
         if metodo.startswith("Anderson"):
             res = anderson_darling(v, alpha=alpha, nome=var)
+        elif metodo.startswith("Ryan"):
+            res = ryan_joiner(v, alpha=alpha, nome=var)
         else:
             res = shapiro_wilk(v, alpha=alpha, tcl=False, nome=var)
-        return b.item_de_resultado(res, f"Normalidade: {var}")
+        # como no Minitab, o teste vem com o gráfico de probabilidade normal da amostra
+        fig = graficos.probabilidade_normal(v, teste=res)
+        return b.item_de_resultado(res, f"Normalidade: {var}", figuras=[fig])
 
     b.rodar(executar)
 

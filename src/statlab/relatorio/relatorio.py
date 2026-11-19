@@ -52,7 +52,7 @@ def resumo_resultado(res: Resultado) -> list[str]:
     if res.gl:
         linhas.append("gl = " + "; ".join(num(g, 0) if float(g).is_integer() else num(g, 1) for g in res.gl))
     if res.p is not None:
-        linhas.append(f"p {p_valor(res.p)}")
+        linhas.append(f"p {res.p_limite} {num(res.p, 2)}" if res.p_limite else f"p {p_valor(res.p)}")
     if res.n is not None:
         linhas.append(f"n = {res.n}")
     if res.ic is not None:

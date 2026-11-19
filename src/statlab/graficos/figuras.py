@@ -16,7 +16,7 @@ from scipy import stats
 
 from statlab.core.dados import ErroDeDados
 from statlab.core.formatacao import num, p_valor
-from statlab.core.normalidade import anderson_darling
+from statlab.core.normalidade import Normalidade, anderson_darling
 from statlab.core.regressao import coeficientes
 
 TEMPLATE = "plotly_white"
@@ -172,10 +172,17 @@ def intervalos(
     return _aplicar_tema(fig, titulo or f"IC de {pct}% para a média", "Grupo", "Média")
 
 
-def probabilidade_normal(valores: object, *, titulo: str | None = None) -> go.Figure:
+def _titulo_probabilidade(teste: Normalidade) -> str:
+    """Ex.: 'Probabilidade normal — Shapiro-Wilk W = 0,981, p = 0,412' (o método que o usuário escolheu)."""
+    p = f"{teste.p_limite} {num(teste.p, 2)}" if teste.p_limite else p_valor(teste.p)
+    return f"Probabilidade normal — {teste.nome} {teste.rotulo_estatistica} = {num(teste.estatistica, 3)}, p {p}"
+
+
+def probabilidade_normal(valores: object, *, titulo: str | None = None, teste: Normalidade | None = None) -> go.Figure:
     """Gráfico de probabilidade normal (quantis teóricos × observados) com reta de referência.
 
-    O título traz o teste de Anderson-Darling (padrão do Minitab), quando há dados suficientes.
+    ``teste`` é o resultado do teste de normalidade que o usuário escolheu; o título mostra a estatística
+    e o p desse teste. Sem ``teste``, o título traz o Anderson-Darling (padrão do Minitab), se houver variação.
     """
     x = _limpo(valores)
     if len(x) < 3:
@@ -186,11 +193,9 @@ def probabilidade_normal(valores: object, *, titulo: str | None = None) -> go.Fi
     fig.add_scatter(x=osm, y=osr, mode="markers", name="Dados", marker=dict(color="#1f77b4"))
     fig.add_scatter(x=xs, y=slope * xs + intercept, mode="lines", name="Normal ajustada", line=dict(color="red"))
     if titulo is None:
-        if np.ptp(x) > 0:
-            ad = anderson_darling(x)
-            titulo = f"Probabilidade normal — Anderson-Darling A² = {num(ad.estatistica, 3)}, p {p_valor(ad.p)}"
-        else:
-            titulo = "Probabilidade normal"
+        if teste is None and np.ptp(x) > 0:
+            teste = anderson_darling(x)
+        titulo = _titulo_probabilidade(teste) if teste is not None else "Probabilidade normal"
     return _aplicar_tema(fig, titulo, "Quantis teóricos da normal", "Valores observados")
 
 

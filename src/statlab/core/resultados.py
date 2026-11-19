@@ -47,6 +47,7 @@ class Resultado:
     """Campos comuns a todo teste ou análise.
 
     - ``p``: valor p do teste que decidiu a conclusão (já unilateral se a direção foi escolhida antes).
+    - ``p_limite``: ``'>'`` ou ``'<'`` quando a tabela só dá o p como limite (ex.: p > 0,10); ``p`` é o limite.
     - ``passos``: cálculo em texto, na ordem em que foi feito.
     - ``avisos``: alertas para o usuário (exclusões, premissas violadas, extrapolação).
     - ``prerequisitos``: resultado de cada verificação prévia, em texto.
@@ -58,6 +59,7 @@ class Resultado:
     rotulo_estatistica: str = ""
     gl: tuple[float, ...] | None = None
     p: float | None = None
+    p_limite: str = ""
     n: int | None = None
     ic: tuple[float, float] | None = None
     ic_descricao: str = ""
@@ -68,9 +70,13 @@ class Resultado:
 
     @property
     def significativo(self) -> bool | None:
-        """True/False pela regra p ≤ α; None quando não há p."""
+        """True/False pela regra p ≤ α; None quando não há p ou o limite do p não basta para decidir."""
         if self.p is None:
             return None
+        if self.p_limite == ">":  # p > limite: decide-se só se o limite já for ≥ α
+            return False if self.alpha <= self.p else None
+        if self.p_limite == "<":  # p < limite: decide-se só se o limite já for ≤ α
+            return True if self.alpha >= self.p else None
         return self.p <= self.alpha
 
     @property

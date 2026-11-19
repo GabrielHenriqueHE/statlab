@@ -102,8 +102,8 @@ da saída: são informação para você decidir, nunca um motivo para o app troc
 marcada, a saída diz quantos saíram e o n antes e depois.
 
 **Regras da disciplina** (reportadas como nota, não aplicadas sozinhas): outlier suave fora de
-[Q1 − 1,5D; Q3 + 1,5D] e extremo fora de [Q1 − 3D; Q3 + 3D]; normalidade por Shapiro-Wilk ou
-Anderson-Darling; n·p·q ≥ 5 nas proporções; razão maior/menor variância até 9× na ANOVA; p ≤ 0,01 →
+[Q1 − 1,5D; Q3 + 1,5D] e extremo fora de [Q1 − 3D; Q3 + 3D]; normalidade por Shapiro-Wilk,
+Anderson-Darling ou Ryan-Joiner; n·p·q ≥ 5 nas proporções; razão maior/menor variância até 9× na ANOVA; p ≤ 0,01 →
 99% de confiança, p ≤ 0,05 → 95%.
 
 **Sessão.** Cada comando acrescenta um bloco. Dá para remover um bloco, limpar tudo e exportar em

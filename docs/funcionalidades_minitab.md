@@ -43,7 +43,7 @@ não exclui dados e não redige conclusão (ver `CLAUDE.md`).
 | Diagrama de dispersão (com grupos e reta) | ✅ F2 | reta de mínimos quadrados opcional |
 | Gráfico de valores individuais | ✅ F2 | média por grupo unida por linha |
 | Gráfico de intervalos (IC da média) | ✅ F2 | t de Student, nível de confiança fixo em 95% na tela |
-| Gráfico de probabilidade normal | ✅ F2 | título com Anderson-Darling |
+| Gráfico de probabilidade normal | ✅ F2 | no menu Gráfico, com Anderson-Darling; também sai junto de cada teste de normalidade, com a estatística desse teste |
 | Gráfico de Pareto | ✅ F2 | barras + % acumulada (eixo direito) |
 | Gráfico de barras | ✅ F2 | média por categoria |
 | Gráfico de séries temporais | ✅ F2 | rótulos opcionais no eixo X |
@@ -69,7 +69,7 @@ não exclui dados e não redige conclusão (ver `CLAUDE.md`).
 | Assimetria e curtose | ✅ F2 | G1 e G2 ajustadas, como no Minitab |
 | Teste de normalidade Anderson-Darling | ✅ F2 | padrão do Minitab; p por Stephens (validado pela brochure) |
 | Teste de normalidade Shapiro-Wilk | ✅ | **opção** de método no comando Normalidade (sem o atalho do TCL) |
-| Teste de normalidade Ryan-Joiner | ⚪ | não implementado: sem referência verificável para o p (nota no README) |
+| Teste de normalidade Ryan-Joiner | ✅ | p pela tabela da apostila (α de 0,01 a 0,10; n ≥ 9); aviso para n < 25 |
 | Correlação (Pearson e Spearman) | ✅ | **opção** do diálogo: o usuário escolhe o método |
 | Covariância | ✅ | Estatísticas descritivas, com 2+ variáveis (n − 1; pares completos por par) |
 | Teste de outlier (Grubbs) | 🔵 | a disciplina usa a regra do diagrama de caixa (já implementada) |
